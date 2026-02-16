@@ -1,0 +1,9 @@
+playwright
+playwright-stealth
+typer
+rich
+python-slugify
+ebooklib
+beautifulsoup4
+lxml
+httpx
