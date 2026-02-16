@@ -1,11 +1,12 @@
 # Wattpad EPUB Downloader
 
-A command-line tool to fetch story URLs from an API and download chapter content as HTML files, which can then be used for EPUB conversion.
+A CLI tool to download stories from Wattpad-like websites and convert them into EPUB format. It uses Playwright for stealthy scraping and `ebooklib` for EPUB generation.
 
 ## Features
 
-- **Extract URLs**: Automatically retrieve chapter links from a specified API endpoint across multiple pages.
-- **Download Content**: Scrape chapter content using Playwright with stealth mode to avoid detection.
+- **Extract URLs**: Retrieve chapter links from API endpoints.
+- **Stealth Scraping**: Download chapter content using Playwright with bot detection evasion. Automatically skips already downloaded chapters.
+- **EPUB Conversion**: Automatically bundle downloaded HTML chapters into a clean EPUB file with metadata and cover art. Auto-generates filenames based on title and author.
 - **Progress Tracking**: Visual progress bars and status updates using Rich.
 
 ## Installation
@@ -25,31 +26,50 @@ A command-line tool to fetch story URLs from an API and download chapter content
 ## Usage
 
 ### 1. Extract Chapter URLs
-Use the `get-urls` command to fetch chapter links from the story API.
+Fetch chapter links from the story API and save them to a file.
 
 ```bash
-python -m src.main get-urls "https://wattpad.com.vn/get/listchap/85995?page=1" 1 5 --output urls.txt
+python -m src.main get-urls "API_URL" PAGE_FROM PAGE_TO --output urls.txt
 ```
-
-- `api_url`: The base API URL for listing chapters.
-- `page_from`: Starting page number.
-- `page_to`: Ending page number.
-- `--output` / `-o`: (Optional) The file to save URLs to (default: `urls.txt`).
+- **Shortcut**: `-o` for `--output`.
 
 ### 2. Download Chapters
-Use the `download` command to save the content of each URL as an HTML file.
+Save chapter content as HTML files from the list of URLs. It detects and skips existing chapters in the output directory.
 
 ```bash
 python -m src.main download urls.txt --output downloads
 ```
+- **Shortcut**: `-o` for `--output`.
 
-- `file_list`: Path to the text file containing URLs.
-- `--output` / `-o`: (Optional) The directory to save HTML files in (default: `downloads`).
+### 3. Convert to EPUB
+Generate an EPUB file from the downloaded HTML chapters.
+
+```bash
+python -m src.main convert --title "Story Title" --author "Author Name" --cover cover.png
+```
+- **Key Options**:
+  - `-i`, `--input`: Directory containing HTML files (default: `downloads`).
+  - `-o`, `--output`: Output EPUB filename. If omitted, it defaults to `epub/Author_Title.epub`.
+  - `-t`, `--title`: Story title (default: `Wattpad Story`).
+  - `-a`, `--author`: Author name (default: `Unknown`).
+  - `-c`, `--cover`: Path or URL to cover image (default: `cover.png`).
+
+## Project Structure
+
+- **src/**: Main source code.
+  - `main.py`: CLI entry point with commands for URL extraction, downloading, and conversion.
+  - `scraper.py`: Playwright scraping logic using stealth mode.
+  - `utils.py`: HTML cleaning and EPUB creation utilities.
+- **downloads/**: Default directory for HTML chapter files.
+- **epub/**: Default directory for generated EPUB files.
+- **logs/**: Contains `error.log` for failed downloads.
+- **urls.txt**: Default storage for extracted URLs.
 
 ## Dependencies
 
-- **Playwright**: Headless browser automation.
-- **httpx**: Asynchronous HTTP client for API requests.
-- **BeautifulSoup4**: HTML parsing and cleaning.
-- **Typer**: Professional CLI creation.
-- **Rich**: Terminal formatting and progress bars.
+- **Playwright & Playwright-Stealth**: Browser automation and bot detection evasion.
+- **Typer & Rich**: CLI framework and terminal formatting.
+- **EbookLib**: EPUB file generation.
+- **BeautifulSoup4 & LXML**: HTML parsing and cleaning.
+- **HTTPX**: Asynchronous HTTP client for API requests.
+- **Python-Slugify**: Filename normalization.
