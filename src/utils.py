@@ -11,13 +11,13 @@ def clean_filename(title: str) -> str:
 
 
 def process_text_for_line_breaks(text: str) -> str:
+    # Normalize multiple spaces to single space
     text = re.sub(r" {2,}", " ", text)
-    text = re.sub(r"([.!?])\s+(?=[A-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯ])", r"\1\n\n", text)
-    text = re.sub(r'([.!?])\s+("(?=[A-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯ]))', r"\1\n\n\2", text)
-    text = re.sub(r'([.!?]")\s+(?=[A-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯ])', r"\1\n\n", text)
-    text = re.sub(r'(")\s+(")', r"\1\n\n\2", text)
-    text = re.sub(r"([.!?])\s+(- )", r"\1\n\n\2", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
+    # Ensure paragraphs are separated by exactly two newlines
+    # First, normalize all newlines to single newlines
+    text = re.sub(r"\n+", "\n", text)
+    # Then, turn every single newline into double newlines for paragraph separation
+    text = re.sub(r"\n", "\n\n", text)
     return text.strip()
 
 
@@ -33,7 +33,7 @@ def extract_main_content(html: str) -> str:
     content_div = soup.find("div", class_=re.compile(r"(truyen|content)"))
 
     if not content_div:
-        return "Không tìm thấy nội dung truyện."
+        return None
 
     text = content_div.get_text(separator="\n", strip=True)
     return process_text_for_line_breaks(text)

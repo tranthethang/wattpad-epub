@@ -6,7 +6,7 @@ from playwright.async_api import async_playwright
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from ..config import (CHAPTER_PATTERN, DEFAULT_DOWNLOAD_DIR, DEFAULT_LOG_DIR,
+from ..config import (DEFAULT_DOWNLOAD_DIR, DEFAULT_LOG_DIR,
                       DOWNLOAD_DELAY, ERROR_LOG_FILE)
 from ..core.scraper_service import get_page_html, save_chapter
 
@@ -39,11 +39,11 @@ async def run_download(file_list: str, output: str, concurrency: int):
         return
 
     existing_files = os.listdir(output)
-    existing_prefixes = {
-        match.group(1)
-        for f in existing_files
-        if (match := re.search(CHAPTER_PATTERN, f))
-    }
+    existing_chapter_nums = set()
+    from ..config import CHAPTER_NUMBER_PATTERN
+    for f in existing_files:
+        if match := re.search(CHAPTER_NUMBER_PATTERN, f):
+            existing_chapter_nums.add(match.group(1))
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -57,34 +57,55 @@ async def run_download(file_list: str, output: str, concurrency: int):
             task = progress.add_task(description="Đang xử lý...", total=len(urls))
 
             async def download_url(url):
-                url_match = re.search(CHAPTER_PATTERN, url)
-                prefix = url_match.group(1) if url_match else ""
+                # Lấy phần cuối cùng của URL làm base name
+                url_path = url.split("/")[-1]
+                if not url_path:
+                    url_path = url.split("/")[-2]
+                
+                # Check skip based on chapter number
+                match = re.search(CHAPTER_NUMBER_PATTERN, url_path)
+                chapter_num = match.group(1) if match else None
 
                 async with semaphore:
                     try:
-                        if prefix and prefix in existing_prefixes:
+                        if chapter_num and chapter_num in existing_chapter_nums:
                             console.print(
-                                f"[yellow]Bỏ qua:[/yellow] {prefix or url[:20]}"
+                                f"[yellow]Bỏ qua:[/yellow] Chương {chapter_num}"
                             )
                             progress.advance(task)
                             return
 
                         progress.update(
-                            task, description=f"Đang tải: {prefix or url[:20]}..."
+                            task, description=f"Đang tải: {url_path}..."
                         )
                         data = await get_page_html(browser, url)
                         if not data or not data.get("html"):
                             log_error(url)
-                            console.print(f"[red]Thất bại:[/red] {url[:30]}...")
+                            console.print(f"[red]Thất bại (Page Error):[/red] {url[:30]}...")
                         else:
-                            save_chapter(output, data["title"], data["html"], prefix)
-                            console.print(
-                                f"[green]Thành công:[/green] {prefix or data['title'][:20]}"
-                            )
+                            # Xử lý tên file mới từ title
+                            title = data.get("title", "")
+                            from slugify import slugify
+                            
+                            if ":" in title:
+                                sub_title = title.split(":", 1)[1].strip()
+                                sub_title_slug = slugify(sub_title)
+                                file_name = f"{url_path}-{sub_title_slug}.html".lower()
+                            else:
+                                file_name = f"{url_path}.html".lower()
+
+                            res = save_chapter(output, title, data["html"], file_name)
+                            if not res:
+                                log_error(url)
+                                console.print(f"[red]Thất bại (No Content):[/red] {url[:30]}...")
+                            else:
+                                console.print(
+                                    f"[green]Thành công:[/green] {file_name}"
+                                )
 
                         await asyncio.sleep(DOWNLOAD_DELAY)
                     except Exception as e:
-                        console.print(f"[red]Lỗi:[/red] {prefix or url[:20]} - {e}")
+                        console.print(f"[red]Lỗi:[/red] {file_name} - {e}")
                         log_error(url)
                     finally:
                         progress.advance(task)

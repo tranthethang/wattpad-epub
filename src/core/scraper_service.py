@@ -21,7 +21,11 @@ async def get_page_html(browser: Browser, url: str):
             await page.mouse.wheel(0, 1000)
             await asyncio.sleep(SCRAPING_SCROLL_DELAY)
 
-        return {"html": await page.content(), "title": await page.title()}
+        title = await page.title()
+        if not title or "error" in title.lower():
+            return None
+
+        return {"html": await page.content(), "title": title}
     except Exception as e:
         # Rethrow để commands xử lý log lỗi
         raise e
@@ -29,16 +33,12 @@ async def get_page_html(browser: Browser, url: str):
         await context.close()
 
 
-def save_chapter(output_dir: str, title: str, html_content: str, prefix: str = ""):
-    # Kết hợp prefix và title để đảm bảo sắp xếp đúng (e.g., chuong-1-tieu-de.html)
-    safe_title = slugify(title)
-    if prefix and prefix not in safe_title:
-        file_name = f"{prefix}-{safe_title}.html"
-    else:
-        file_name = f"{safe_title}.html"
-
+def save_chapter(output_dir: str, title: str, html_content: str, file_name: str):
     file_path = os.path.join(output_dir, file_name)
     content = extract_main_content(html_content)
+    if not content:
+        return None
+
     final_html = HTML_TEMPLATE.format(title=title, content=content)
 
     with open(file_path, "w", encoding="utf-8") as f:

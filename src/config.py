@@ -50,5 +50,5 @@ HTML_TEMPLATE = """
 EPUB_CSS = (
     'body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; margin: 20px; } '
     "h1 { text-align: center; color: #ff6600; } "
-    ".content { white-space: pre-wrap; }"
+    "p { margin-bottom: 0.8em; text-indent: 1em; text-align: justify; }"
 )
