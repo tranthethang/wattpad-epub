@@ -11,8 +11,12 @@ The `wattpad-epub` project is a Python-based CLI tool designed to download stori
 ## Structure
 - **src/**: Main source code directory.
   - [**main.py**](./src/main.py): CLI entry point using `Typer` with commands for URL extraction, downloading, and conversion.
-  - [**scraper.py**](./src/scraper.py): Asynchronous scraping logic using `Playwright` and `playwright-stealth`.
-  - [**utils.py**](./src/utils.py): Utility functions for HTML cleaning and EPUB creation using `ebooklib`.
+  - **core/**: Core business logic.
+    - [**scraper_service.py**](./src/core/scraper_service.py): Playwright scraping logic using stealth mode.
+    - [**epub_factory.py**](./src/core/epub_factory.py): EPUB generation logic.
+    - [**url_extractor.py**](./src/core/url_extractor.py): API URL extraction logic.
+  - **commands/**: CLI command implementations.
+  - [**utils.py**](./src/utils.py): Utility functions for HTML cleaning and text processing.
 - **downloads/**: Default directory for downloaded HTML chapter files.
 - **epub/**: Default directory for generated EPUB files.
 - **requirements.txt**: List of Python dependencies.
@@ -60,6 +64,12 @@ python -m src.main download urls.txt --output downloads --concurrency 4
 ```bash
 python -m src.main convert --title "Story Title" --author "Author Name" --cover cover.png
 ```
+- **Key Options**:
+  - `-i`, `--input`: Directory containing HTML files (default: `downloads`).
+  - `-o`, `--output`: Output EPUB filename.
+  - `-t`, `--title`: Story title.
+  - `-a`, `--author`: Author name.
+  - `-c`, `--cover`: Path to cover image.
 
 ## Testing
 No formal testing framework (e.g., pytest) is currently configured. Validation is performed manually via CLI output and generated files.

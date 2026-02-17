@@ -13,7 +13,9 @@ from ..utils import extract_main_content, text_to_html_paragraphs
 console = Console()
 
 
-def run_convert(input_dir: str, output_file: str, title: str, author: str, cover: str):
+def run_convert(
+    input_dir: str, output_file: str | None, title: str, author: str, cover: str
+):
     if not os.path.exists(input_dir):
         console.print(f"[red]Lỗi:[/red] Thư mục {input_dir} không tồn tại.")
         return

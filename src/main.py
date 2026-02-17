@@ -43,7 +43,9 @@ def convert(
     input_dir: str = typer.Option(
         DEFAULT_DOWNLOAD_DIR, "--input", "-i", help="Thư mục chứa HTML"
     ),
-    output_file: str = typer.Option(None, "--output", "-o", help="Tên file EPUB"),
+    output_file: str | None = typer.Option(
+        None, "--output", "-o", help="Tên file EPUB"
+    ),
     title: str = typer.Option("Wattpad Story", "--title", "-t", help="Tiêu đề truyện"),
     author: str = typer.Option("Unknown", "--author", "-a", help="Tác giả"),
     cover: str = typer.Option(

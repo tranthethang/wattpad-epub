@@ -17,6 +17,8 @@ def extract_urls_from_html(html_content: str, base_domain: str) -> list:
     urls = []
     for a in soup.find_all("a", href=True):
         href = a["href"]
+        if isinstance(href, list):
+            href = "".join(href)
         if href.startswith("/"):
             href = f"{base_domain}{href}"
         if href.startswith(("http://", "https://")):

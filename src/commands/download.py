@@ -40,9 +40,9 @@ async def run_download(file_list: str, output: str, concurrency: int):
 
     existing_files = os.listdir(output)
     existing_prefixes = {
-        re.search(CHAPTER_PATTERN, f).group(1)
+        match.group(1)
         for f in existing_files
-        if re.search(CHAPTER_PATTERN, f)
+        if (match := re.search(CHAPTER_PATTERN, f))
     }
 
     async with async_playwright() as p:

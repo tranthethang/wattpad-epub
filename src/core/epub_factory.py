@@ -7,7 +7,7 @@ from slugify import slugify
 from ..config import EPUB_CSS
 
 
-def create_epub_book(title: str, author: str, cover_path: str = None):
+def create_epub_book(title: str, author: str, cover_path: str | None = None):
     book = epub.EpubBook()
     book.set_identifier(slugify(title))
     book.set_title(title)
