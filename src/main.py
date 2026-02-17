@@ -152,7 +152,9 @@ def get_urls(
                     href = a['href']
                     if href.startswith('/'):
                         href = f"{base_domain}{href}"
-                    page_urls.append(href)
+                    
+                    if href.startswith(('http://', 'https://')):
+                        page_urls.append(href)
                 
                 all_urls.extend(page_urls)
                 progress.advance(task)
