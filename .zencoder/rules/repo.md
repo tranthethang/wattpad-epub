@@ -52,7 +52,8 @@ python -m src.main get-urls "API_URL" PAGE_FROM PAGE_TO --output urls.txt
 
 ### 2. Download Chapters
 ```bash
-python -m src.main download urls.txt --output downloads
+# Tải với 4 luồng đồng thời (mặc định là 4)
+python -m src.main download urls.txt --output downloads --concurrency 4
 ```
 
 ### 3. Convert to EPUB

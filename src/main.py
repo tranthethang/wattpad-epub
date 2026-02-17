@@ -25,7 +25,8 @@ def log_error(url: str):
 @app.command()
 def download(
     file_list: str = typer.Argument(..., help="Đường dẫn tới file .txt chứa danh sách URL"),
-    output: str = typer.Option("downloads", "--output", "-o", help="Thư mục lưu file HTML")
+    output: str = typer.Option("downloads", "--output", "-o", help="Thư mục lưu file HTML"),
+    concurrency: int = typer.Option(4, "--concurrency", "-c", help="Số lượng luồng tải đồng thời")
 ):
     """
     Ứng dụng CLI tải nội dung HTML từ Wattpad giả lập người dùng.
@@ -56,6 +57,7 @@ def download(
         async with async_playwright() as p:
             # Chạy Chrome ngầm (headless=True). Nếu bị chặn, hãy đổi thành False để debug
             browser = await p.chromium.launch(headless=True)
+            semaphore = asyncio.Semaphore(concurrency)
 
             with Progress(
                 SpinnerColumn(),
@@ -64,47 +66,51 @@ def download(
             ) as progress:
                 task = progress.add_task(description="Đang xử lý...", total=len(urls))
 
-                for url in urls:
+                async def download_url(url):
                     # Lấy chapter prefix để hiển thị trạng thái
                     url_match = re.search(r'(chuong-\d+)', url)
                     prefix = url_match.group(1) if url_match else url[:30]
 
-                    try:
-                        # Kiểm tra prefix xem đã tải chưa
-                        if url_match:
-                            if prefix in existing_prefixes:
-                                console.print(f"[yellow]Bỏ qua:[/yellow] {prefix} (Đã tồn tại)")
+                    async with semaphore:
+                        try:
+                            # Kiểm tra prefix xem đã tải chưa
+                            if url_match:
+                                if prefix in existing_prefixes:
+                                    console.print(f"[yellow]Bỏ qua:[/yellow] {prefix} (Đã tồn tại)")
+                                    progress.advance(task)
+                                    return
+
+                            progress.update(task, description=f"Đang tải: {prefix}...")
+                            data = await get_page_html(browser, url)
+
+                            if not data or not data.get('html'):
+                                console.print(f"[red]Thất bại:[/red] {prefix} (Không lấy được nội dung)")
+                                log_error(url)
                                 progress.advance(task)
-                                continue
+                                return
 
-                        progress.update(task, description=f"Đang tải: {prefix}...")
-                        data = await get_page_html(browser, url)
+                            file_name = f"{slugify(data['title'])}.html"
+                            file_path = os.path.join(output, file_name)
 
-                        if not data or not data.get('html'):
-                            console.print(f"[red]Thất bại:[/red] {prefix} (Không lấy được nội dung)")
+                            # Trích xuất và xử lý nội dung từ <div class="truyen">
+                            content = extract_main_content(data['html'])
+                            # Bọc vào template HTML để dễ đọc hơn
+                            final_html = format_html_template(data['title'], content)
+
+                            with open(file_path, "w", encoding="utf-8") as f:
+                                f.write(final_html)
+
+                            console.print(f"[green]Thành công:[/green] {prefix}")
+                            progress.advance(task)
+                            # Nghỉ một khoảng ngẫu nhiên để tránh bị Wattpad nghi ngờ
+                            await asyncio.sleep(1)
+                        except Exception as e:
+                            console.print(f"[red]Lỗi:[/red] {prefix} - {e}")
                             log_error(url)
                             progress.advance(task)
-                            continue
 
-                        file_name = f"{slugify(data['title'])}.html"
-                        file_path = os.path.join(output, file_name)
-
-                        # Trích xuất và xử lý nội dung từ <div class="truyen">
-                        content = extract_main_content(data['html'])
-                        # Bọc vào template HTML để dễ đọc hơn
-                        final_html = format_html_template(data['title'], content)
-
-                        with open(file_path, "w", encoding="utf-8") as f:
-                            f.write(final_html)
-
-                        console.print(f"[green]Thành công:[/green] {prefix}")
-                        progress.advance(task)
-                        # Nghỉ một khoảng ngẫu nhiên để tránh bị Wattpad nghi ngờ
-                        await asyncio.sleep(2)
-                    except Exception as e:
-                        console.print(f"[red]Lỗi:[/red] {prefix} - {e}")
-                        log_error(url)
-                        progress.advance(task)
+                tasks = [download_url(url) for url in urls]
+                await asyncio.gather(*tasks)
 
             await browser.close()
             console.print(f"\n[bold green]✨ Hoàn thành![/bold green] Đã lưu vào thư mục: [cyan]{output}[/cyan]")
