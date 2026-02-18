@@ -113,6 +113,31 @@ async def download_url(
             progress.advance(task)
 
 
+async def execute_download_tasks(urls, browser, semaphore, output, existing_indices):
+    """Run all download tasks concurrently with progress tracking."""
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task(description="Preparing...", total=len(urls))
+        await asyncio.gather(
+            *[
+                download_url(
+                    i + 1,
+                    url,
+                    browser,
+                    semaphore,
+                    output,
+                    existing_indices,
+                    progress,
+                    task,
+                )
+                for i, url in enumerate(urls)
+            ]
+        )
+
+
 async def run_download(file_list: str, output: str, concurrency: int):
     """Coordinate the concurrent download of story chapters."""
     urls = load_urls(file_list)
@@ -120,35 +145,11 @@ async def run_download(file_list: str, output: str, concurrency: int):
         console.print(f"[yellow]Warning:[/yellow] No valid URLs found in {file_list}")
         return
 
-    if not os.path.exists(output):
-        os.makedirs(output)
-
+    os.makedirs(output, exist_ok=True)
     existing_indices = get_existing_indices(output)
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         semaphore = asyncio.Semaphore(concurrency)
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task(description="Preparing...", total=len(urls))
-            await asyncio.gather(
-                *[
-                    download_url(
-                        i + 1,
-                        url,
-                        browser,
-                        semaphore,
-                        output,
-                        existing_indices,
-                        progress,
-                        task,
-                    )
-                    for i, url in enumerate(urls)
-                ]
-            )
-
+        await execute_download_tasks(urls, browser, semaphore, output, existing_indices)
         await browser.close()

@@ -33,30 +33,28 @@ async def download_image(client: httpx.AsyncClient, url: str, save_path: str) ->
     return False
 
 
+async def scroll_page(page):
+    """Perform scrolling to handle lazy-loaded content."""
+    for _ in range(SCRAPING_SCROLL_COUNT):
+        await page.mouse.wheel(0, 1000)
+        await asyncio.sleep(SCRAPING_SCROLL_DELAY)
+
+
 async def get_page_html(browser: Browser, url: str):
-    """
-    Use Playwright to visit a URL and retrieve its HTML content.
-    Applies stealth techniques to avoid bot detection.
-    """
+    """Visit a URL and retrieve its HTML content with stealth and scrolling."""
     context = await browser.new_context(user_agent=USER_AGENT, viewport=VIEWPORT)
     page = await context.new_page()
-
     await Stealth().apply_stealth_async(page)
 
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=BROWSER_TIMEOUT)
-
-        for _ in range(SCRAPING_SCROLL_COUNT):
-            await page.mouse.wheel(0, 1000)
-            await asyncio.sleep(SCRAPING_SCROLL_DELAY)
+        await scroll_page(page)
 
         title = await page.title()
         if not title or "error" in title.lower():
             return None
 
         return {"html": await page.content(), "title": title}
-    except Exception as e:
-        raise e
     finally:
         await context.close()
 
