@@ -75,7 +75,19 @@ def extract_images_from_div(content_div: BeautifulSoup) -> str | None:
 
 
 def extract_main_content(html: str) -> str | None:
-    """Extract text or image content from HTML."""
+    """
+    Extract text or image content from HTML based on quality checks.
+    
+    This function finds the content container and extracts either text 
+    or images. If images exist and the text is too short, it prioritizes 
+    returning the images, which is common in comic/manga chapters.
+    
+    Args:
+        html: The raw HTML content from a chapter page.
+        
+    Returns:
+        Processed string content (text or image tags) or None if no content is found.
+    """
     soup = BeautifulSoup(html, HTML_PARSER)
     content_div = get_content_div(soup)
 

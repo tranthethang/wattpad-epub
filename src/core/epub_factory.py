@@ -17,6 +17,17 @@ from ..config import (CHAPTER_ID_PREFIX, DEFAULT_LANGUAGE, EPUB_COVER_FILENAME,
 def create_epub_book(title: str, author: str, cover_path: str | None = None):
     """
     Initialize an EPUB book object with basic information.
+    
+    This function sets metadata (title, author, language, unique identifier)
+    and initializes CSS styling for navigation and content.
+    
+    Args:
+        title: Title of the story.
+        author: Author of the story.
+        cover_path: Optional path to a local or remote cover image.
+        
+    Returns:
+        A tuple of (book_object, navigation_css_object).
     """
     book = epub.EpubBook()
     book.set_identifier(slugify(title))
@@ -108,6 +119,21 @@ def add_chapter_to_book(
 ):
     """
     Create a new chapter and add it to the book.
+    
+    This function generates a chapter file inside the EPUB structure, 
+    embeds any referenced local images from the chapter HTML, and
+    sets its title and content.
+    
+    Args:
+        book: The EpubBook object.
+        nav_css: The navigation style item.
+        title: Title of the chapter.
+        content: The cleaned HTML content of the chapter.
+        index: Sorting index for filenames and IDs.
+        base_dir: Directory containing downloaded chapter files (used for image resolution).
+        
+    Returns:
+        The newly created chapter object.
     """
     chap_id = f"{CHAPTER_ID_PREFIX}{index:04d}"
     file_name = f"{chap_id}{XHTML_EXTENSION}"

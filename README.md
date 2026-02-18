@@ -31,6 +31,12 @@ Fetch chapter links from the story API and save them to a file.
 ```bash
 python -m src.main get-urls "API_URL" PAGE_FROM PAGE_TO --output urls.txt
 ```
+
+Example:
+```bash
+python -m src.main get-urls "https://wattpad.com.vn/get/listchap/83146?page=1" 1 8 --output urls.txt
+```
+
 - **Shortcut**: `-o` for `--output`.
 
 ### 2. Download Chapters

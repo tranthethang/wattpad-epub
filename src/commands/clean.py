@@ -21,7 +21,19 @@ def is_empty_content(html_content: str) -> bool:
 
 
 def process_file_cleaning(file_path: Path) -> bool:
-    """Read a file and determine if it should be deleted based on content."""
+    """
+    Read a file and determine if it should be deleted based on content.
+    
+    This function parses the HTML file, finds the 'content' div, 
+    and checks if it contains visible text or images. If it's effectively 
+    empty, the file is deleted.
+    
+    Args:
+        file_path: Path object to the target HTML file.
+        
+    Returns:
+        True if the file was deleted, False otherwise.
+    """
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()

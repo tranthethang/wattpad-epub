@@ -41,7 +41,20 @@ async def scroll_page(page):
 
 
 async def get_page_html(browser: Browser, url: str):
-    """Visit a URL and retrieve its HTML content with stealth and scrolling."""
+    """
+    Visit a URL and retrieve its HTML content with stealth and scrolling.
+    
+    This function uses playwright-stealth to bypass bot detection by mimicking 
+    real user behavior and browser fingerprints. It also handles lazy-loaded 
+    content by scrolling down the page.
+    
+    Args:
+        browser: The Playwright browser instance.
+        url: The target URL to scrape.
+        
+    Returns:
+        A dictionary containing the page's HTML content and title, or None if an error occurs.
+    """
     context = await browser.new_context(user_agent=USER_AGENT, viewport=VIEWPORT)
     page = await context.new_page()
     await Stealth().apply_stealth_async(page)
@@ -111,6 +124,19 @@ async def process_chapter_images(soup: BeautifulSoup, output_dir: str, chap_idx:
 async def save_chapter(output_dir: str, title: str, html_content: str, file_name: str):
     """
     Process raw HTML content, handle images, and save to a clean HTML file.
+    
+    This function cleans the raw HTML, downloads images, updates their sources
+    to local paths, and wraps the content in a consistent HTML template for 
+    EPUB conversion.
+    
+    Args:
+        output_dir: Directory where the chapter file will be saved.
+        title: The title of the chapter.
+        html_content: The raw HTML content from the scraper.
+        file_name: The name of the file to save (e.g., "0001-chap-1.html").
+        
+    Returns:
+        The full path to the saved file, or None if no valid content was found.
     """
     file_path = os.path.join(output_dir, file_name)
     content = extract_main_content(html_content)

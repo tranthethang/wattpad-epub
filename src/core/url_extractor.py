@@ -25,6 +25,16 @@ def build_api_url(base_api_url: str, page: int) -> str:
 def extract_urls_from_html(html_content: str, base_domain: str) -> list:
     """
     Parse HTML content to find <a> tags and convert relative paths to absolute URLs.
+    
+    This function extracts links from the API's HTML data, ensuring each link
+    is converted to a full absolute URL using the provided base domain.
+    
+    Args:
+        html_content: The HTML string containing chapter links.
+        base_domain: The story's root domain for relative URLs.
+        
+    Returns:
+        A list of absolute chapter URLs.
     """
     soup = BeautifulSoup(html_content, HTML_PARSER)
     urls = []

@@ -94,7 +94,22 @@ async def download_url(
     progress,
     task,
 ):
-    """Process a single URL: fetch HTML and save it to disk."""
+    """
+    Process a single URL: fetch HTML and save it to disk.
+    
+    This function manages the concurrent request limit using a semaphore, 
+    skips already downloaded chapters, and updates the shared progress bar.
+    
+    Args:
+        index: The sequence number of the chapter.
+        url: The chapter URL.
+        browser: The Playwright browser instance.
+        semaphore: Asyncio semaphore for concurrency control.
+        output: Directory where files will be saved.
+        existing_indices: A set of already downloaded chapter numbers.
+        progress: Rich progress instance.
+        task: Rich progress task ID.
+    """
     async with semaphore:
         try:
             if index in existing_indices:
