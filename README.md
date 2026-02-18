@@ -13,7 +13,7 @@ A CLI tool to download stories from Wattpad-like websites and convert them into 
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/thangtran/wattpad-epub.git
+   git clone https://github.com/tranthethang/wattpad-epub.git
    cd wattpad-epub
    ```
 

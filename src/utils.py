@@ -1,6 +1,6 @@
 """
-Các hàm tiện ích dùng chung cho toàn bộ dự án.
-Bao gồm các hàm xử lý tên file, định dạng văn bản và trích xuất nội dung HTML.
+Common utility functions for the project.
+Includes filename cleaning, text formatting, and HTML content extraction.
 """
 
 import re
@@ -8,77 +8,79 @@ import re
 from bs4 import BeautifulSoup
 from slugify import slugify
 
+from .config import DEFAULT_STORY_FILENAME, HTML_PARSER, MIN_TEXT_LENGTH
+
 
 def clean_filename(title: str) -> str:
     """
-    Chuyển đổi tiêu đề truyện thành một tên file an toàn (slug).
-    Ví dụ: "Truyện Của Tôi" -> "truyen-cua-toi"
+    Convert a story title to a safe filename slug.
+    Example: "My Story" -> "my-story"
     """
     if not title:
-        return "untitled_story"
+        return DEFAULT_STORY_FILENAME
     return slugify(title)
 
 
 def process_text_for_line_breaks(text: str) -> str:
     """
-    Chuẩn hóa xuống dòng và khoảng trắng trong văn bản.
-    1. Chuyển nhiều khoảng trắng liên tiếp thành một.
-    2. Chuẩn hóa nhiều dấu xuống dòng thành hai dấu (phân cách đoạn văn).
+    Normalize line breaks and whitespace in text.
+    1. Replace multiple spaces with a single space.
+    2. Normalize multiple newlines into a single newline.
+    3. Convert each single newline into double newlines for paragraph separation.
     """
-    # Thay thế 2 hoặc nhiều khoảng trắng bằng 1 khoảng trắng
+    # Replace 2 or more spaces with 1 space
     text = re.sub(r" {2,}", " ", text)
-    # Đầu tiên, chuẩn hóa tất cả các cụm xuống dòng thành một dấu xuống dòng duy nhất
+    # First, normalize all newline sequences to a single newline
     text = re.sub(r"\n+", "\n", text)
-    # Sau đó, biến mỗi dấu xuống dòng đơn lẻ thành hai dấu để phân tách đoạn văn rõ ràng
+    # Then, turn each single newline into two to clearly separate paragraphs
     text = re.sub(r"\n", "\n\n", text)
     return text.strip()
 
 
 def text_to_html_paragraphs(text: str) -> str:
     """
-    Chuyển đổi văn bản thuần túy (với dấu xuống dòng kép) thành các thẻ HTML <p>.
-    Dùng để tạo nội dung cho file EPUB.
+    Convert plain text (with double newlines) into HTML <p> tags.
+    Used for creating EPUB content.
     """
-    # Tách văn bản thành các đoạn dựa trên dấu xuống dòng kép
+    # Split text into paragraphs based on double newlines
     paragraphs = text.split("\n\n")
-    # Bọc mỗi đoạn trong thẻ <p>
+    # Wrap each paragraph in <p> tags
     return "".join(f"<p>{p.strip()}</p>" for p in paragraphs if p.strip())
 
 
 def extract_main_content(html: str) -> str:
     """
-    Sử dụng BeautifulSoup để trích xuất nội dung văn bản hoặc ảnh từ mã HTML.
-    Tìm kiếm các thẻ div có class là 'truyen' hoặc 'content'.
+    Extract text or image content from HTML using BeautifulSoup.
+    Looks for div tags with 'truyen' or 'content' classes.
     """
-    soup = BeautifulSoup(html, "lxml")
-    # Tìm thẻ div chứa nội dung truyện (hỗ trợ cả giao diện web và file local)
+    soup = BeautifulSoup(html, HTML_PARSER)
+    # Find the div containing story content (supports web UI and local files)
     content_div = soup.find("div", class_=re.compile(r"(truyen|content)"))
 
     if not content_div:
         return None
 
-    # Lấy toàn bộ text bên trong, phân cách các thẻ con bằng dấu xuống dòng
+    # Get all inner text, separating child tags with newlines
     text = content_div.get_text(separator="\n", strip=True)
     processed_text = process_text_for_line_breaks(text)
 
-    # Kiểm tra xem có ảnh không (fallback cho truyện dạng ảnh)
+    # Check for images (fallback for image-based chapters)
     images = content_div.find_all("img")
-    
-    # Nếu có ảnh và text quá ngắn hoặc rỗng, ưu tiên lấy ảnh
-    # Một số trang có text rác hoặc ký tự đặc biệt làm processed_text không rỗng hoàn toàn
-    if images and (not processed_text or len(processed_text) < 50):
+
+    # If images exist and text is very short/empty, prioritize images
+    if images and (not processed_text or len(processed_text) < MIN_TEXT_LENGTH):
         img_tags = []
         for img in images:
-            # Ưu tiên data-url (thường dùng cho lazy loading), sau đó đến src
+            # Prioritize data-url (for lazy loading), then src
             img_src = img.get("data-url") or img.get("src")
             if img_src:
-                # Trả về tag img với src gốc để scraper_service xử lý tải về sau
+                # Return img tag for scraper_service to handle later
                 img_tags.append(f'<img src="{img_src}" alt="Chapter Image" />')
-        
+
         if img_tags:
             return "\n".join(img_tags)
 
-    # Nếu có text thực sự và không bị ghi đè bởi ảnh
+    # If actual text is found and not overridden by images
     if processed_text:
         return processed_text
 

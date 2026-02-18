@@ -1,9 +1,10 @@
 """
-Main entry point của ứng dụng wattpad-epub.
-Sử dụng Typer để tạo CLI interface cho các tác vụ:
-1. Lấy danh sách URL chương từ API.
-2. Tải nội dung HTML từ danh sách URL.
-3. Chuyển đổi HTML thành file EPUB.
+Main entry point for the wattpad-epub application.
+Provides a CLI interface for:
+1. Extracting chapter URLs from an API.
+2. Downloading HTML content from URLs.
+3. Converting HTML content to EPUB.
+4. Cleaning empty content.
 """
 
 import asyncio
@@ -14,47 +15,51 @@ from .commands.clean import run_clean
 from .commands.convert import run_convert
 from .commands.download import run_download
 from .commands.get_urls import run_get_urls
-from .config import (DEFAULT_COVER_IMAGE, DEFAULT_DOWNLOAD_DIR,
-                     DEFAULT_EPUB_DIR, DEFAULT_URLS_FILE)
+from .config import (DEFAULT_CONCURRENCY, DEFAULT_COVER_IMAGE,
+                     DEFAULT_DOWNLOAD_DIR, DEFAULT_STORY_AUTHOR,
+                     DEFAULT_STORY_TITLE, DEFAULT_URLS_FILE)
 
-# Khởi tạo Typer app
-app = typer.Typer(help="Công cụ tải và chuyển đổi truyện từ Wattpad sang EPUB")
+# Initialize Typer app
+app = typer.Typer(help="Tool for downloading and converting stories to EPUB")
 
 
 @app.command()
 def download(
     file_list: str = typer.Argument(
-        DEFAULT_URLS_FILE, help="File .txt chứa danh sách URL các chương"
+        DEFAULT_URLS_FILE, help="Path to the .txt file containing chapter URLs"
     ),
     output: str = typer.Option(
         DEFAULT_DOWNLOAD_DIR,
         "--output",
         "-o",
-        help="Thư mục lưu trữ các file HTML tải về",
+        help="Directory to save downloaded HTML files",
     ),
     concurrency: int = typer.Option(
-        4, "--concurrency", "-c", help="Số lượng tiến trình tải đồng thời"
+        DEFAULT_CONCURRENCY,
+        "--concurrency",
+        "-c",
+        help="Number of concurrent download processes",
     ),
 ):
     """
-    Tải nội dung HTML từ danh sách URL đã cho.
-    Sử dụng Playwright để vượt qua các cơ chế chống bot.
+    Download HTML content from a list of URLs.
+    Uses Playwright to bypass bot protection.
     """
     asyncio.run(run_download(file_list, output, concurrency))
 
 
 @app.command()
 def get_urls(
-    api_url: str = typer.Argument(..., help="URL của API lấy danh sách chương"),
-    page_from: int = typer.Argument(..., help="Trang bắt đầu lấy dữ liệu"),
-    page_to: int = typer.Argument(..., help="Trang kết thúc lấy dữ liệu"),
+    api_url: str = typer.Argument(..., help="API URL to fetch the chapter list"),
+    page_from: int = typer.Argument(..., help="Starting page number"),
+    page_to: int = typer.Argument(..., help="Ending page number"),
     output_file: str = typer.Option(
-        DEFAULT_URLS_FILE, "--output", "-o", help="Đường dẫn file để lưu danh sách URL"
+        DEFAULT_URLS_FILE, "--output", "-o", help="File to save the extracted URLs"
     ),
 ):
     """
-    Truy vấn API để lấy danh sách URL các chương và lưu vào file text.
-    Thường dùng khi truyện có quá nhiều chương và cần lấy URL hàng loạt.
+    Fetch chapter URLs from an API and save them to a text file.
+    Useful for stories with a large number of chapters.
     """
     asyncio.run(run_get_urls(api_url, page_from, page_to, output_file))
 
@@ -62,28 +67,33 @@ def get_urls(
 @app.command()
 def convert(
     input_dir: str = typer.Option(
-        DEFAULT_DOWNLOAD_DIR, "--input", "-i", help="Thư mục chứa các file HTML đầu vào"
+        DEFAULT_DOWNLOAD_DIR,
+        "--input",
+        "-i",
+        help="Directory containing input HTML files",
     ),
     output_file: str | None = typer.Option(
         None,
         "--output",
         "-o",
-        help="Đường dẫn và tên file EPUB đầu ra (mặc định dựa trên tiêu đề)",
+        help="Path for the output EPUB file (default based on title)",
     ),
     title: str = typer.Option(
-        "Wattpad Story", "--title", "-t", help="Tiêu đề của truyện"
+        DEFAULT_STORY_TITLE, "--title", "-t", help="Title of the story"
     ),
-    author: str = typer.Option("Unknown", "--author", "-a", help="Tên tác giả"),
+    author: str = typer.Option(
+        DEFAULT_STORY_AUTHOR, "--author", "-a", help="Author of the story"
+    ),
     cover: str = typer.Option(
         DEFAULT_COVER_IMAGE,
         "--cover",
         "-c",
-        help="Đường dẫn tới file ảnh bìa (cover image)",
+        help="Path to the cover image file",
     ),
 ):
     """
-    Tổng hợp các file HTML trong thư mục thành một file EPUB hoàn chỉnh.
-    Tự động xử lý thứ tự chương dựa trên tên file.
+    Bundle HTML files from a directory into a complete EPUB file.
+    Automatically sorts chapters based on filenames.
     """
     run_convert(input_dir, output_file, title, author, cover)
 
@@ -91,15 +101,14 @@ def convert(
 @app.command()
 def clean(
     directory: str = typer.Argument(
-        DEFAULT_DOWNLOAD_DIR, help="Thư mục chứa các file HTML cần kiểm tra"
+        DEFAULT_DOWNLOAD_DIR, help="Directory containing HTML files to check"
     ),
 ):
     """
-    Kiểm tra và xoá các file HTML nếu nội dung <div class="content"> rỗng.
+    Check and remove HTML files where <div class="content"> is empty.
     """
     run_clean(directory)
 
 
 if __name__ == "__main__":
-    # Điểm khởi chạy của chương trình
     app()
