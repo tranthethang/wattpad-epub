@@ -13,7 +13,7 @@ A CLI tool to download stories from Wattpad-like websites and convert them into 
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/thangtran/wattpad-epub.git
+   git clone https://github.com/tranthethang/wattpad-epub.git
    cd wattpad-epub
    ```
 
@@ -31,15 +31,23 @@ Fetch chapter links from the story API and save them to a file.
 ```bash
 python -m src.main get-urls "API_URL" PAGE_FROM PAGE_TO --output urls.txt
 ```
+
+Example:
+```bash
+python -m src.main get-urls "https://wattpad.com.vn/get/listchap/83146?page=1" 1 8 --output urls.txt
+```
+
 - **Shortcut**: `-o` for `--output`.
 
 ### 2. Download Chapters
 Save chapter content as HTML files from the list of URLs. It detects and skips existing chapters in the output directory.
 
 ```bash
-python -m src.main download urls.txt --output downloads
+python -m src.main download urls.txt --output downloads --concurrency 4
 ```
-- **Shortcut**: `-o` for `--output`.
+- **Key Options**:
+  - `-o`, `--output`: Directory to save HTML files (default: `downloads`).
+  - `-c`, `--concurrency`: Number of concurrent download threads (default: `4`).
 
 ### 3. Convert to EPUB
 Generate an EPUB file from the downloaded HTML chapters.
@@ -57,13 +65,18 @@ python -m src.main convert --title "Story Title" --author "Author Name" --cover 
 ## Project Structure
 
 - **src/**: Main source code.
-  - `main.py`: CLI entry point with commands for URL extraction, downloading, and conversion.
-  - `scraper.py`: Playwright scraping logic using stealth mode.
-  - `utils.py`: HTML cleaning and EPUB creation utilities.
+  - `main.py`: CLI entry point with commands.
+  - **core/**: Core business logic.
+    - `scraper_service.py`: Playwright scraping logic using stealth mode.
+    - `epub_factory.py`: EPUB generation logic.
+    - `url_extractor.py`: API URL extraction logic.
+  - **commands/**: CLI command implementations.
+  - `utils.py`: Text cleaning and paragraph conversion utilities.
 - **downloads/**: Default directory for HTML chapter files.
 - **epub/**: Default directory for generated EPUB files.
 - **logs/**: Contains `error.log` for failed downloads.
 - **urls.txt**: Default storage for extracted URLs.
+- **cover.png**: Default cover image for EPUBs.
 
 ## Dependencies
 
