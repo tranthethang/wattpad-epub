@@ -61,40 +61,45 @@ async def get_page_html(browser: Browser, url: str):
         await context.close()
 
 
+def prepare_image_save_path(img_dir: str, chap_idx: str, index: int, original_src: str) -> tuple[str, str]:
+    """Generate local filename and full save path for an image."""
+    parsed_ext = original_src.split(".")[-1].split("?")[0].lower()
+    if parsed_ext not in SUPPORTED_IMAGE_EXTENSIONS:
+        parsed_ext = "png"
+
+    img_filename = f"{chap_idx}_{index+1:03d}.{parsed_ext}"
+    return img_filename, os.path.join(img_dir, img_filename)
+
+
+async def download_chapter_images(client: httpx.AsyncClient, images: list, img_dir: str, chap_idx: str):
+    """Create and execute download tasks for a list of images."""
+    tasks = []
+    for i, img in enumerate(images):
+        original_src = img.get("src")
+        if not original_src:
+            continue
+
+        filename, save_path = prepare_image_save_path(img_dir, chap_idx, i, original_src)
+        tasks.append(download_image(client, original_src, save_path))
+        img["src"] = f"{IMAGES_SUBDIR}/{filename}"
+
+    if tasks:
+        await asyncio.gather(*tasks)
+
+
 async def process_chapter_images(soup: BeautifulSoup, output_dir: str, chap_idx: str):
-    """
-    Identify and download all images in the chapter soup.
-    Updates image sources to relative local paths.
-    """
+    """Identify and coordinate the download of all images in the chapter soup."""
     images = soup.find_all("img")
     if not images:
         return soup
 
     img_dir = os.path.join(output_dir, IMAGES_SUBDIR)
-    if not os.path.exists(img_dir):
-        os.makedirs(img_dir)
+    os.makedirs(img_dir, exist_ok=True)
 
     async with httpx.AsyncClient(
         headers={"User-Agent": USER_AGENT}, follow_redirects=True
     ) as client:
-        tasks = []
-        for i, img in enumerate(images):
-            original_src = img.get("src")
-            if not original_src:
-                continue
-
-            parsed_ext = original_src.split(".")[-1].split("?")[0].lower()
-            if parsed_ext not in SUPPORTED_IMAGE_EXTENSIONS:
-                parsed_ext = "png"
-
-            img_filename = f"{chap_idx}_{i+1:03d}.{parsed_ext}"
-            img_save_path = os.path.join(img_dir, img_filename)
-
-            tasks.append(download_image(client, original_src, img_save_path))
-            img["src"] = f"{IMAGES_SUBDIR}/{img_filename}"
-
-        if tasks:
-            await asyncio.gather(*tasks)
+        await download_chapter_images(client, images, img_dir, chap_idx)
 
     return soup
 

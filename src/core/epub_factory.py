@@ -76,8 +76,8 @@ def _process_single_image(book, img, base_dir):
     if not os.path.exists(local_img_path):
         return
 
-    # Check if already added
-    if any(item.file_name == src for item in book.get_items()):
+    # Check if already added by filename
+    if any(item.file_name == src for item in book.get_items_of_type(epub.EpubItem)):
         return
 
     with open(local_img_path, "rb") as f:

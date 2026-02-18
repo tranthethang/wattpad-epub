@@ -48,40 +48,45 @@ def text_to_html_paragraphs(text: str) -> str:
     return "".join(f"<p>{p.strip()}</p>" for p in paragraphs if p.strip())
 
 
-def extract_main_content(html: str) -> str:
-    """
-    Extract text or image content from HTML using BeautifulSoup.
-    Looks for div tags with 'truyen' or 'content' classes.
-    """
+def get_content_div(soup: BeautifulSoup) -> BeautifulSoup | None:
+    """Find the div containing story content."""
+    return soup.find("div", class_=re.compile(r"(truyen|content)"))
+
+
+def extract_text_from_div(content_div: BeautifulSoup) -> str:
+    """Extract and process text from a content div."""
+    text = content_div.get_text(separator="\n", strip=True)
+    return process_text_for_line_breaks(text)
+
+
+def extract_images_from_div(content_div: BeautifulSoup) -> str | None:
+    """Extract image tags from a content div as a fallback."""
+    images = content_div.find_all("img")
+    if not images:
+        return None
+
+    img_tags = []
+    for img in images:
+        img_src = img.get("data-url") or img.get("src")
+        if img_src:
+            img_tags.append(f'<img src="{img_src}" alt="Chapter Image" />')
+
+    return "\n".join(img_tags) if img_tags else None
+
+
+def extract_main_content(html: str) -> str | None:
+    """Extract text or image content from HTML."""
     soup = BeautifulSoup(html, HTML_PARSER)
-    # Find the div containing story content (supports web UI and local files)
-    content_div = soup.find("div", class_=re.compile(r"(truyen|content)"))
+    content_div = get_content_div(soup)
 
     if not content_div:
         return None
 
-    # Get all inner text, separating child tags with newlines
-    text = content_div.get_text(separator="\n", strip=True)
-    processed_text = process_text_for_line_breaks(text)
+    processed_text = extract_text_from_div(content_div)
+    img_content = extract_images_from_div(content_div)
 
-    # Check for images (fallback for image-based chapters)
-    images = content_div.find_all("img")
+    # If images exist and text is too short, prioritize images
+    if img_content and (not processed_text or len(processed_text) < MIN_TEXT_LENGTH):
+        return img_content
 
-    # If images exist and text is very short/empty, prioritize images
-    if images and (not processed_text or len(processed_text) < MIN_TEXT_LENGTH):
-        img_tags = []
-        for img in images:
-            # Prioritize data-url (for lazy loading), then src
-            img_src = img.get("data-url") or img.get("src")
-            if img_src:
-                # Return img tag for scraper_service to handle later
-                img_tags.append(f'<img src="{img_src}" alt="Chapter Image" />')
-
-        if img_tags:
-            return "\n".join(img_tags)
-
-    # If actual text is found and not overridden by images
-    if processed_text:
-        return processed_text
-
-    return None
+    return processed_text if processed_text else None
