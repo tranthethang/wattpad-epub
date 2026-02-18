@@ -55,9 +55,7 @@ def get_output_path(output_file: str | None, author: str, title: str) -> str:
     return os.path.join(DEFAULT_EPUB_DIR, f"{safe_author}_{safe_title}.epub")
 
 
-def process_and_add_chapter(
-    book, nav_css, input_dir, file_name, index, epub_chapters
-):
+def process_and_add_chapter(book, nav_css, input_dir, file_name, index, epub_chapters):
     """Read HTML, process content, and add as a chapter to the book."""
     file_path = os.path.join(input_dir, file_name)
     with open(file_path, "r", encoding="utf-8") as f:
@@ -93,7 +91,9 @@ def run_convert(
     epub_chapters = []
 
     for i, file_name in enumerate(html_files):
-        process_and_add_chapter(book, nav_css, input_dir, file_name, i + 1, epub_chapters)
+        process_and_add_chapter(
+            book, nav_css, input_dir, file_name, i + 1, epub_chapters
+        )
 
     finalize_epub(book, output_file, epub_chapters)
     console.print(

@@ -59,7 +59,9 @@ async def get_page_html(browser: Browser, url: str):
         await context.close()
 
 
-def prepare_image_save_path(img_dir: str, chap_idx: str, index: int, original_src: str) -> tuple[str, str]:
+def prepare_image_save_path(
+    img_dir: str, chap_idx: str, index: int, original_src: str
+) -> tuple[str, str]:
     """Generate local filename and full save path for an image."""
     parsed_ext = original_src.split(".")[-1].split("?")[0].lower()
     if parsed_ext not in SUPPORTED_IMAGE_EXTENSIONS:
@@ -69,7 +71,9 @@ def prepare_image_save_path(img_dir: str, chap_idx: str, index: int, original_sr
     return img_filename, os.path.join(img_dir, img_filename)
 
 
-async def download_chapter_images(client: httpx.AsyncClient, images: list, img_dir: str, chap_idx: str):
+async def download_chapter_images(
+    client: httpx.AsyncClient, images: list, img_dir: str, chap_idx: str
+):
     """Create and execute download tasks for a list of images."""
     tasks = []
     for i, img in enumerate(images):
@@ -77,7 +81,9 @@ async def download_chapter_images(client: httpx.AsyncClient, images: list, img_d
         if not original_src:
             continue
 
-        filename, save_path = prepare_image_save_path(img_dir, chap_idx, i, original_src)
+        filename, save_path = prepare_image_save_path(
+            img_dir, chap_idx, i, original_src
+        )
         tasks.append(download_image(client, original_src, save_path))
         img["src"] = f"{IMAGES_SUBDIR}/{filename}"
 
