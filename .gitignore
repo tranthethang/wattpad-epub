@@ -208,3 +208,14 @@ marimo/_lsp/
 __marimo__/
 
 ./urls.txt
+
+assets/
+temp/
+.cache/
+.zencoder/
+.zenflow/
+
+# macOS
+.DS_Store
+
+.idea/
