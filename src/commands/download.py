@@ -96,10 +96,10 @@ async def download_url(
 ):
     """
     Process a single URL: fetch HTML and save it to disk.
-    
-    This function manages the concurrent request limit using a semaphore, 
+
+    This function manages the concurrent request limit using a semaphore,
     skips already downloaded chapters, and updates the shared progress bar.
-    
+
     Args:
         index: The sequence number of the chapter.
         url: The chapter URL.
