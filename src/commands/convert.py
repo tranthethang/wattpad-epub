@@ -9,7 +9,6 @@ import re
 from rich.console import Console
 
 from ..config import (CHAPTER_NUMBER_PATTERN, CHAPTER_TITLE_LABEL,
-                      DEFAULT_COVER_IMAGE, DEFAULT_DOWNLOAD_DIR,
                       DEFAULT_EPUB_DIR, SAFE_FILENAME_PATTERN)
 from ..core.epub_factory import (add_chapter_to_book, create_epub_book,
                                  finalize_epub)
@@ -43,7 +42,7 @@ def process_chapter_content(html_content: str) -> str:
     raw_content = extract_main_content(html_content)
     if raw_content and "<img " in raw_content:
         return raw_content
-    return text_to_html_paragraphs(raw_content)
+    return text_to_html_paragraphs(raw_content or "")
 
 
 def get_output_path(output_file: str | None, author: str, title: str) -> str:

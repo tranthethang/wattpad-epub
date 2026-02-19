@@ -5,7 +5,7 @@ Includes filename cleaning, text formatting, and HTML content extraction.
 
 import re
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from slugify import slugify
 
 from .config import DEFAULT_STORY_FILENAME, HTML_PARSER, MIN_TEXT_LENGTH
@@ -48,18 +48,18 @@ def text_to_html_paragraphs(text: str) -> str:
     return "".join(f"<p>{p.strip()}</p>" for p in paragraphs if p.strip())
 
 
-def get_content_div(soup: BeautifulSoup) -> BeautifulSoup | None:
+def get_content_div(soup: BeautifulSoup) -> Tag | None:
     """Find the div containing story content."""
     return soup.find("div", class_=re.compile(r"(truyen|content)"))
 
 
-def extract_text_from_div(content_div: BeautifulSoup) -> str:
+def extract_text_from_div(content_div: Tag) -> str:
     """Extract and process text from a content div."""
     text = content_div.get_text(separator="\n", strip=True)
     return process_text_for_line_breaks(text)
 
 
-def extract_images_from_div(content_div: BeautifulSoup) -> str | None:
+def extract_images_from_div(content_div: Tag) -> str | None:
     """Extract image tags from a content div as a fallback."""
     images = content_div.find_all("img")
     if not images:
@@ -77,14 +77,14 @@ def extract_images_from_div(content_div: BeautifulSoup) -> str | None:
 def extract_main_content(html: str) -> str | None:
     """
     Extract text or image content from HTML based on quality checks.
-    
-    This function finds the content container and extracts either text 
-    or images. If images exist and the text is too short, it prioritizes 
+
+    This function finds the content container and extracts either text
+    or images. If images exist and the text is too short, it prioritizes
     returning the images, which is common in comic/manga chapters.
-    
+
     Args:
         html: The raw HTML content from a chapter page.
-        
+
     Returns:
         Processed string content (text or image tags) or None if no content is found.
     """
