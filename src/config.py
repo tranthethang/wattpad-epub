@@ -69,7 +69,7 @@ CHAPTER_ID_PREFIX = "chap_"
 # Extension for EPUB internal XHTML files
 XHTML_EXTENSION = ".xhtml"
 # Label for chapter titles
-CHAPTER_TITLE_LABEL = "Chapter"
+CHAPTER_TITLE_LABEL = "Chương"
 # Default image filename inside EPUB
 EPUB_COVER_FILENAME = "cover.jpg"
 # Directory for images inside the download folder

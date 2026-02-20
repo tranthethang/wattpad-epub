@@ -12,7 +12,8 @@ from ..config import (CHAPTER_NUMBER_PATTERN, CHAPTER_TITLE_LABEL,
                       DEFAULT_EPUB_DIR, SAFE_FILENAME_PATTERN)
 from ..core.epub_factory import (add_chapter_to_book, create_epub_book,
                                  finalize_epub)
-from ..utils import extract_main_content, text_to_html_paragraphs
+from ..utils import (extract_chapter_title, extract_main_content,
+                     text_to_html_paragraphs)
 
 console = Console()
 
@@ -60,7 +61,14 @@ def process_and_add_chapter(book, nav_css, input_dir, file_name, index, epub_cha
     with open(file_path, "r", encoding="utf-8") as f:
         html_content = f.read()
 
-    chapter_title = f"{CHAPTER_TITLE_LABEL} {extract_chapter_number(file_name)}"
+    chap_num = extract_chapter_number(file_name)
+    desc_title = extract_chapter_title(html_content)
+
+    if desc_title:
+        chapter_title = f"{CHAPTER_TITLE_LABEL} {chap_num}: {desc_title}"
+    else:
+        chapter_title = f"{CHAPTER_TITLE_LABEL} {chap_num}"
+
     processed_content = process_chapter_content(html_content)
 
     chapter = add_chapter_to_book(

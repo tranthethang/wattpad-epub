@@ -102,3 +102,24 @@ def extract_main_content(html: str) -> str | None:
         return img_content
 
     return processed_text if processed_text else None
+
+
+def extract_chapter_title(html: str) -> str | None:
+    """
+    Extract and clean the chapter title from HTML content.
+    1. Look for <h1>, then fallback to <title>.
+    2. If a colon exists, take the part after it.
+    3. Return the cleaned title string or None.
+    """
+    soup = BeautifulSoup(html, HTML_PARSER)
+    # Check <h1> first (from our template), then <title>
+    title_tag = soup.find("h1") or soup.find("title")
+    if not title_tag:
+        return None
+
+    title_text = title_tag.get_text(strip=True)
+    if ":" in title_text:
+        # Split by last colon and take the second part (right-hand side)
+        title_text = title_text.rsplit(":", 1)[-1].strip()
+
+    return title_text
