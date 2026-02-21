@@ -5,7 +5,8 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install dependencies to a temporary path
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # Stage 2: Final Runtime
 FROM python:3.10-slim

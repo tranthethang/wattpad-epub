@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -7,14 +9,13 @@ from temporalio import activity
 from ..commands.convert import run_convert
 from ..commands.download import run_download
 from ..commands.get_urls import run_get_urls
-from ..config import DOWNLOAD_MAX_RETRIES, DOWNLOAD_RETRY_BACKOFF
-from .utils import (DownloadValidationError, ValidationError,
-                    validate_concurrency, validate_page_range,
-                    validate_retries, validate_string)
+from ..config import (DOWNLOAD_MAX_RETRIES, DOWNLOAD_RETRY_BACKOFF,
+                      MAX_BACKOFF_WAIT_TIME)
+from ..validation import (validate_concurrency, validate_page_range,
+                          validate_retries, validate_string)
+from .utils import DownloadValidationError, ValidationError
 
 logger = logging.getLogger(__name__)
-
-MAX_BACKOFF_WAIT_TIME = 300
 
 
 @activity.defn
@@ -61,10 +62,7 @@ def _count_html_files(output_dir: str) -> int:
 
 @activity.defn
 async def download_with_validation_activity(
-    urls_file: str,
-    output_dir: str,
-    concurrency: int,
-    max_retries: int,
+    urls_file: str, output_dir: str, concurrency: int, max_retries: int
 ) -> str:
     """Download chapters with validation retry logic.
 
@@ -93,6 +91,7 @@ async def download_with_validation_activity(
     urls_count = _count_urls(urls_file)
     logger.info(f"Found {urls_count} URLs to download")
 
+    html_files_count = 0
     for attempt in range(max_retries):
         logger.info(
             f"Download attempt {attempt + 1}/{max_retries} "
@@ -121,11 +120,7 @@ async def download_with_validation_activity(
 
 @activity.defn
 async def convert_activity(
-    input_dir: str,
-    output_file: str,
-    title: str,
-    author: str,
-    cover_path: str | None,
+    input_dir: str, output_file: str, title: str, author: str, cover_path: str | None
 ) -> str:
     """Convert downloaded HTML files to EPUB format.
 
@@ -154,7 +149,7 @@ async def convert_activity(
 
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(
-        None, run_convert, input_dir, output_file, title, author, cover_path
+        None, lambda: run_convert(input_dir, output_file, title, author, cover_path)
     )
 
     if cover_path and os.path.exists(cover_path):

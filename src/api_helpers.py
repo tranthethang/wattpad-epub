@@ -12,6 +12,7 @@ from temporalio.client import Client
 
 from .config import (COVER_UPLOAD_DIR, DEFAULT_DOWNLOAD_DIR, DEFAULT_EPUB_DIR,
                      TEMPORAL_HOST, TEMPORAL_NAMESPACE, TEMPORAL_PORT)
+from .utils import ensure_directory_exists
 
 logger = logging.getLogger(__name__)
 
@@ -81,15 +82,25 @@ async def save_cover_image(cover_image: UploadFile) -> str | None:
     if not cover_image:
         return None
 
+    try:
+        ensure_directory_exists(COVER_UPLOAD_DIR)
+    except OSError as e:
+        logger.error(f"Failed to create cover directory: {str(e)}")
+        return None
+
     safe_filename = (
         slugify(Path(cover_image.filename).stem) + Path(cover_image.filename).suffix
     )
     cover_path = os.path.join(COVER_UPLOAD_DIR, safe_filename)
     logger.info(f"Saving cover image to {cover_path}")
 
-    with open(cover_path, "wb") as f:
-        content = await cover_image.read()
-        f.write(content)
+    try:
+        with open(cover_path, "wb") as f:
+            content = await cover_image.read()
+            f.write(content)
+    except OSError as e:
+        logger.error(f"Failed to save cover image: {str(e)}")
+        return None
 
     return cover_path
 
@@ -119,8 +130,10 @@ def build_workflow_input(
     Returns:
         WorkflowInput dictionary with all required fields
     """
-    safe_title = slugify(title)
-    safe_author = slugify(author)
+    from .utils import clean_filename
+
+    safe_title = clean_filename(title)
+    safe_author = clean_filename(author)
 
     return {
         "api_url": api_url,

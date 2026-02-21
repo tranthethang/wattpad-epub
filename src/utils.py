@@ -3,12 +3,36 @@ Common utility functions for the project.
 Includes filename cleaning, text formatting, and HTML content extraction.
 """
 
+import os
 import re
 
 from bs4 import BeautifulSoup, Tag
-from slugify import slugify
+from python_slugify import slugify
 
-from .config import DEFAULT_STORY_FILENAME, HTML_PARSER, MIN_TEXT_LENGTH
+from .config import (DEFAULT_STORY_FILENAME, HTML_PARSER, HTTP_SCHEMES,
+                     IMAGE_ALT_TEXT, IMAGE_TAG, IMG_DATA_URL_ATTRIBUTE,
+                     IMG_SRC_ATTRIBUTE, INVISIBLE_CHARS_PATTERN,
+                     MIN_TEXT_LENGTH)
+
+
+def is_http_url(url: str | None) -> bool:
+    """Check if a string is a valid HTTP(S) URL."""
+    return bool(url and isinstance(url, str) and url.startswith(HTTP_SCHEMES))
+
+
+def ensure_directory_exists(directory: str) -> None:
+    """Create directory if it doesn't exist.
+
+    Args:
+        directory: Path to directory to create
+
+    Raises:
+        OSError: If directory creation fails
+    """
+    try:
+        os.makedirs(directory, exist_ok=True)
+    except OSError as e:
+        raise OSError(f"Failed to create directory {directory}: {str(e)}") from e
 
 
 def clean_filename(title: str) -> str:
@@ -41,35 +65,64 @@ def text_to_html_paragraphs(text: str) -> str:
     """
     Convert plain text (with double newlines) into HTML <p> tags.
     Used for creating EPUB content.
+
+    Args:
+        text: Plain text with double newlines as paragraph separators
+
+    Returns:
+        HTML string with content wrapped in <p> tags
     """
-    # Split text into paragraphs based on double newlines
     paragraphs = text.split("\n\n")
-    # Wrap each paragraph in <p> tags
     return "".join(f"<p>{p.strip()}</p>" for p in paragraphs if p.strip())
 
 
 def get_content_div(soup: BeautifulSoup) -> Tag | None:
-    """Find the div containing story content."""
-    return soup.find("div", class_=re.compile(r"(truyen|content)"))
+    """Find the div containing story content.
+
+    Args:
+        soup: BeautifulSoup object
+
+    Returns:
+        Content div tag or None if not found
+    """
+    for div in soup.find_all("div"):
+        classes = div.get("class", [])
+        if any(cls in ("truyen", "content") for cls in classes):
+            return div
+    return None
 
 
 def extract_text_from_div(content_div: Tag) -> str:
-    """Extract and process text from a content div."""
+    """Extract and process text from a content div.
+
+    Args:
+        content_div: BeautifulSoup Tag containing content
+
+    Returns:
+        Processed text with normalized line breaks
+    """
     text = content_div.get_text(separator="\n", strip=True)
     return process_text_for_line_breaks(text)
 
 
 def extract_images_from_div(content_div: Tag) -> str | None:
-    """Extract image tags from a content div as a fallback."""
-    images = content_div.find_all("img")
+    """Extract image tags from a content div as a fallback.
+
+    Args:
+        content_div: BeautifulSoup Tag containing images
+
+    Returns:
+        HTML string with img tags or None if no images found
+    """
+    images = content_div.find_all(IMAGE_TAG)
     if not images:
         return None
 
     img_tags = []
     for img in images:
-        img_src = img.get("data-url") or img.get("src")
+        img_src = img.get(IMG_DATA_URL_ATTRIBUTE) or img.get(IMG_SRC_ATTRIBUTE)
         if img_src:
-            img_tags.append(f'<img src="{img_src}" alt="Chapter Image" />')
+            img_tags.append(f'<img src="{img_src}" alt="{IMAGE_ALT_TEXT}" />')
 
     return "\n".join(img_tags) if img_tags else None
 
