@@ -5,7 +5,10 @@ Contains paths, browser settings, regex patterns, and HTML/CSS templates.
 
 import os
 
+from dotenv import load_dotenv
 from playwright.async_api import ViewportSize
+
+load_dotenv()
 
 # --- Directory Configuration ---
 # Default directory for downloaded HTML files
@@ -109,3 +112,22 @@ EPUB_CSS = (
     "h1 { text-align: center; color: #ff6600; } "
     "p { margin-bottom: 0.8em; text-indent: 1em; text-align: justify; }"
 )
+
+# --- Temporal Configuration ---
+TEMPORAL_HOST = os.getenv("TEMPORAL_HOST", "localhost")
+TEMPORAL_PORT = int(os.getenv("TEMPORAL_PORT", "7233"))
+TEMPORAL_NAMESPACE = os.getenv("TEMPORAL_NAMESPACE", "default")
+TEMPORAL_TASK_QUEUE = os.getenv("TEMPORAL_TASK_QUEUE", "epub-queue")
+
+# --- Override Directory Configuration from Environment ---
+DEFAULT_DOWNLOAD_DIR = os.getenv("DOWNLOADS_DIR", DEFAULT_DOWNLOAD_DIR)
+DEFAULT_EPUB_DIR = os.getenv("EPUB_OUTPUT_DIR", DEFAULT_EPUB_DIR)
+DEFAULT_LOG_DIR = os.getenv("LOG_DIR", DEFAULT_LOG_DIR)
+COVER_UPLOAD_DIR = os.getenv("COVER_UPLOAD_DIR", "cover")
+ERROR_LOG_FILE = os.path.join(DEFAULT_LOG_DIR, "error.log")
+
+# --- Override Download Settings from Environment ---
+DEFAULT_CONCURRENCY = int(os.getenv("DEFAULT_CONCURRENCY", "4"))
+DOWNLOAD_MAX_RETRIES = int(os.getenv("DOWNLOAD_MAX_RETRIES", "10"))
+DOWNLOAD_RETRY_BACKOFF = float(os.getenv("DOWNLOAD_RETRY_BACKOFF", "2.0"))
+DOWNLOAD_DELAY = float(os.getenv("DOWNLOAD_DELAY", "2.0"))

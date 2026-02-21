@@ -1,0 +1,139 @@
+"""Helper functions and models for API endpoints."""
+
+import logging
+import os
+from pathlib import Path
+from typing import TypedDict
+
+from fastapi import UploadFile
+from pydantic import BaseModel
+from python_slugify import slugify
+from temporalio.client import Client
+
+from .config import (COVER_UPLOAD_DIR, DEFAULT_DOWNLOAD_DIR, DEFAULT_EPUB_DIR,
+                     TEMPORAL_HOST, TEMPORAL_NAMESPACE, TEMPORAL_PORT)
+
+logger = logging.getLogger(__name__)
+
+
+class WorkflowInput(TypedDict, total=False):
+    """Type definition for workflow input data."""
+
+    api_url: str
+    page_from: int
+    page_to: int
+    title: str
+    author: str
+    concurrency: int
+    max_retries: int
+    cover_path: str | None
+    urls_file: str
+    output_dir: str
+    output_file: str
+
+
+class WorkflowResponse(BaseModel):
+    """Response model for workflow submission."""
+
+    workflow_id: str
+    status: str
+    message: str
+
+
+class StatusResponse(BaseModel):
+    """Response model for workflow status query."""
+
+    workflow_id: str
+    status: str
+    current_step: str | None
+    result: str | None
+    error: str | None
+
+
+async def get_temporal_client() -> Client:
+    """Create and return a Temporal client.
+
+    Returns:
+        Connected Temporal client
+
+    Raises:
+        Exception: If connection fails
+
+    Note:
+        Connection timeout is 10 seconds
+    """
+    return await Client.connect(
+        f"{TEMPORAL_HOST}:{TEMPORAL_PORT}",
+        namespace=TEMPORAL_NAMESPACE,
+        rpc_timeout=10,
+    )
+
+
+async def save_cover_image(cover_image: UploadFile) -> str | None:
+    """Save uploaded cover image with sanitized filename.
+
+    Args:
+        cover_image: Uploaded cover image file
+
+    Returns:
+        Path to saved cover image, or None
+    """
+    if not cover_image:
+        return None
+
+    safe_filename = (
+        slugify(Path(cover_image.filename).stem) + Path(cover_image.filename).suffix
+    )
+    cover_path = os.path.join(COVER_UPLOAD_DIR, safe_filename)
+    logger.info(f"Saving cover image to {cover_path}")
+
+    with open(cover_path, "wb") as f:
+        content = await cover_image.read()
+        f.write(content)
+
+    return cover_path
+
+
+def build_workflow_input(
+    api_url: str,
+    page_from: int,
+    page_to: int,
+    title: str,
+    author: str,
+    concurrency: int,
+    max_retries: int,
+    cover_path: str | None,
+) -> WorkflowInput:
+    """Build workflow input data dictionary.
+
+    Args:
+        api_url: API endpoint
+        page_from: Starting page
+        page_to: Ending page
+        title: Story title
+        author: Story author
+        concurrency: Download concurrency
+        max_retries: Max retry attempts
+        cover_path: Cover image path
+
+    Returns:
+        WorkflowInput dictionary with all required fields
+    """
+    safe_title = slugify(title)
+    safe_author = slugify(author)
+
+    return {
+        "api_url": api_url,
+        "page_from": page_from,
+        "page_to": page_to,
+        "title": title,
+        "author": author,
+        "concurrency": concurrency,
+        "max_retries": max_retries,
+        "cover_path": cover_path,
+        "urls_file": os.path.join(DEFAULT_DOWNLOAD_DIR, "urls.txt"),
+        "output_dir": DEFAULT_DOWNLOAD_DIR,
+        "output_file": os.path.join(
+            DEFAULT_EPUB_DIR, f"{safe_author}_{safe_title}.epub"
+        ),
+    }
