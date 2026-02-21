@@ -58,7 +58,7 @@ async def run_get_urls(api_url: str, page_from: int, page_to: int, output_file: 
             all_urls = [url for sublist in results for url in sublist]
 
     if all_urls:
-        with open(output_file, "a", encoding="utf-8") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             for url in all_urls:
                 f.write(f"{url}\n")
         console.print(
