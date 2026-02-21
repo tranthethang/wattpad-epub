@@ -5,14 +5,31 @@ Includes filename cleaning, text formatting, and HTML content extraction.
 
 import os
 import re
+import unicodedata
 
 from bs4 import BeautifulSoup, Tag
-from python_slugify import slugify
 
 from .config import (DEFAULT_STORY_FILENAME, HTML_PARSER, HTTP_SCHEMES,
                      IMAGE_ALT_TEXT, IMAGE_TAG, IMG_DATA_URL_ATTRIBUTE,
                      IMG_SRC_ATTRIBUTE, INVISIBLE_CHARS_PATTERN,
                      MIN_TEXT_LENGTH)
+
+
+def slugify(text: str) -> str:
+    """
+    Convert text to a URL-safe slug format.
+    - Converts to lowercase
+    - Replaces spaces with hyphens
+    - Removes special characters
+    - Normalizes unicode to ASCII
+    """
+    if not text:
+        return ""
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^\w\s-]", "", text).strip()
+    text = re.sub(r"[-\s]+", "-", text)
+    return text.lower()
 
 
 def is_http_url(url: str | None) -> bool:

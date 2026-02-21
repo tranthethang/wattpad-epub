@@ -9,12 +9,11 @@ import os
 import httpx
 from bs4 import BeautifulSoup
 from ebooklib import epub
-from python_slugify import slugify
 
 from ..config import (CHAPTER_ID_PREFIX, CONTENT_DIV_CLASS, DEFAULT_LANGUAGE,
                       EPUB_COVER_FILENAME, EPUB_CSS, HTML_PARSER, HTTP_TIMEOUT,
                       IMAGE_TAG, IMG_SRC_ATTRIBUTE, XHTML_EXTENSION)
-from ..utils import is_http_url
+from ..utils import is_http_url, slugify
 
 logger = logging.getLogger(__name__)
 

@@ -8,12 +8,11 @@ import logging
 import os
 
 from playwright.async_api import async_playwright
-from python_slugify import slugify
 
 from ..config import (BROWSER_HEADLESS, DEFAULT_DOWNLOAD_DIR, DEFAULT_LOG_DIR,
                       DOWNLOAD_DELAY, ERROR_LOG_FILE, FILE_INDEX_PREFIX_LENGTH)
 from ..core.scraper_service import get_page_html, save_chapter
-from ..utils import ensure_directory_exists
+from ..utils import ensure_directory_exists, slugify
 
 logger = logging.getLogger(__name__)
 

@@ -7,12 +7,11 @@ from typing import TypedDict
 
 from fastapi import UploadFile
 from pydantic import BaseModel
-from python_slugify import slugify
 from temporalio.client import Client
 
 from .config import (COVER_UPLOAD_DIR, DEFAULT_DOWNLOAD_DIR, DEFAULT_EPUB_DIR,
                      TEMPORAL_HOST, TEMPORAL_NAMESPACE, TEMPORAL_PORT)
-from .utils import ensure_directory_exists
+from .utils import ensure_directory_exists, slugify
 
 logger = logging.getLogger(__name__)
 
