@@ -3,7 +3,6 @@
 import logging
 import os
 from pathlib import Path
-from typing import TypedDict
 
 from fastapi import UploadFile
 from pydantic import BaseModel
@@ -12,24 +11,9 @@ from temporalio.client import Client
 from .config import (COVER_UPLOAD_DIR, DEFAULT_DOWNLOAD_DIR, DEFAULT_EPUB_DIR,
                      TEMPORAL_HOST, TEMPORAL_NAMESPACE, TEMPORAL_PORT)
 from .utils import ensure_directory_exists, slugify
+from .workflows.models import WorkflowInput
 
 logger = logging.getLogger(__name__)
-
-
-class WorkflowInput(TypedDict, total=False):
-    """Type definition for workflow input data."""
-
-    api_url: str
-    page_from: int
-    page_to: int
-    title: str
-    author: str
-    concurrency: int
-    max_retries: int
-    cover_path: str | None
-    urls_file: str
-    output_dir: str
-    output_file: str
 
 
 class WorkflowResponse(BaseModel):
@@ -65,11 +49,10 @@ async def get_temporal_client() -> Client:
     return await Client.connect(
         f"{TEMPORAL_HOST}:{TEMPORAL_PORT}",
         namespace=TEMPORAL_NAMESPACE,
-        rpc_timeout=10,
     )
 
 
-async def save_cover_image(cover_image: UploadFile) -> str | None:
+async def save_cover_image(cover_image: UploadFile | None) -> str | None:
     """Save uploaded cover image with sanitized filename.
 
     Args:
@@ -85,6 +68,10 @@ async def save_cover_image(cover_image: UploadFile) -> str | None:
         ensure_directory_exists(COVER_UPLOAD_DIR)
     except OSError as e:
         logger.error(f"Failed to create cover directory: {str(e)}")
+        return None
+
+    if not cover_image.filename:
+        logger.error("Cover image has no filename")
         return None
 
     safe_filename = (
@@ -114,7 +101,7 @@ def build_workflow_input(
     max_retries: int,
     cover_path: str | None,
 ) -> WorkflowInput:
-    """Build workflow input data dictionary.
+    """Build workflow input data instance.
 
     Args:
         api_url: API endpoint
@@ -127,25 +114,23 @@ def build_workflow_input(
         cover_path: Cover image path
 
     Returns:
-        WorkflowInput dictionary with all required fields
+        WorkflowInput dataclass instance
     """
     from .utils import clean_filename
 
     safe_title = clean_filename(title)
     safe_author = clean_filename(author)
 
-    return {
-        "api_url": api_url,
-        "page_from": page_from,
-        "page_to": page_to,
-        "title": title,
-        "author": author,
-        "concurrency": concurrency,
-        "max_retries": max_retries,
-        "cover_path": cover_path,
-        "urls_file": os.path.join(DEFAULT_DOWNLOAD_DIR, "urls.txt"),
-        "output_dir": DEFAULT_DOWNLOAD_DIR,
-        "output_file": os.path.join(
-            DEFAULT_EPUB_DIR, f"{safe_author}_{safe_title}.epub"
-        ),
-    }
+    return WorkflowInput(
+        api_url=api_url,
+        page_from=page_from,
+        page_to=page_to,
+        title=title,
+        author=author,
+        concurrency=concurrency,
+        max_retries=max_retries,
+        cover_path=cover_path,
+        urls_file=os.path.join(DEFAULT_DOWNLOAD_DIR, "urls.txt"),
+        output_dir=DEFAULT_DOWNLOAD_DIR,
+        output_file=os.path.join(DEFAULT_EPUB_DIR, f"{safe_author}_{safe_title}.epub"),
+    )

@@ -103,7 +103,7 @@ def get_content_div(soup: BeautifulSoup) -> Tag | None:
         Content div tag or None if not found
     """
     for div in soup.find_all("div"):
-        classes = div.get("class", [])
+        classes = div.get("class") or []
         if any(cls in ("truyen", "content") for cls in classes):
             return div
     return None

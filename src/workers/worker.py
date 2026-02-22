@@ -4,12 +4,12 @@ import logging
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from src.config import (TEMPORAL_HOST, TEMPORAL_NAMESPACE, TEMPORAL_PORT,
-                        TEMPORAL_TASK_QUEUE)
-from src.workflows.activities import (convert_activity,
-                                      download_with_validation_activity,
-                                      extract_urls_activity)
-from src.workflows.epub_workflow import EpubGenerationWorkflow
+from ..config import (TEMPORAL_HOST, TEMPORAL_NAMESPACE, TEMPORAL_PORT,
+                      TEMPORAL_TASK_QUEUE)
+from ..workflows.activities import (convert_activity,
+                                    download_with_validation_activity,
+                                    extract_urls_activity)
+from ..workflows.epub_workflow import EpubGenerationWorkflow
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

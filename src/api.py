@@ -84,21 +84,18 @@ async def make(
         workflow_id = f"epub-{uuid.uuid4().hex[:WORKFLOW_ID_HEX_LENGTH]}"
         logger.info(f"Starting workflow {workflow_id} on queue {TEMPORAL_TASK_QUEUE}")
 
-        try:
-            await client.start_workflow(
-                EpubGenerationWorkflow.run,
-                input_data,
-                id=workflow_id,
-                task_queue=TEMPORAL_TASK_QUEUE,
-            )
-            logger.info(f"Workflow {workflow_id} submitted successfully")
-            return WorkflowResponse(
-                workflow_id=workflow_id,
-                status="submitted",
-                message=f"Workflow {workflow_id} submitted successfully",
-            )
-        finally:
-            await client.close()
+        await client.start_workflow(
+            EpubGenerationWorkflow.run,
+            input_data,
+            id=workflow_id,
+            task_queue=TEMPORAL_TASK_QUEUE,
+        )
+        logger.info(f"Workflow {workflow_id} submitted successfully")
+        return WorkflowResponse(
+            workflow_id=workflow_id,
+            status="submitted",
+            message=f"Workflow {workflow_id} submitted successfully",
+        )
     except Exception as e:
         logger.error(f"Error submitting workflow: {str(e)}", exc_info=True)
         if cover_path and os.path.exists(cover_path):
@@ -127,42 +124,52 @@ async def status(workflow_id: str) -> StatusResponse:
 
     try:
         client = await get_temporal_client()
-        try:
-            handle = client.get_workflow_handle(workflow_id)
-            workflow_status = await handle.describe()
-            state = workflow_status.status
+        handle = client.get_workflow_handle(workflow_id)
+        workflow_status = await handle.describe()
+        state = workflow_status.status
 
-            result = None
-            error = None
-            current_step = state.name.lower()
+        result = None
+        error = None
 
-            logger.info(f"Workflow {workflow_id} status: {state.name}")
-
-            if state.name == "COMPLETED":
-                try:
-                    result = await handle.result()
-                    current_step = "completed"
-                    logger.info(f"Workflow {workflow_id} completed: {result}")
-                except Exception as e:
-                    error = f"Failed to retrieve result: {str(e)}"
-                    current_step = "completed_with_error"
-                    logger.error(
-                        f"Failed to retrieve result for {workflow_id}: {error}"
-                    )
-            elif state.name == "FAILED":
-                error = workflow_status.status_message or "Unknown error"
-                current_step = "failed"
-                logger.error(f"Workflow {workflow_id} failed: {error}")
-
+        if state is None:
             return StatusResponse(
                 workflow_id=workflow_id,
-                status=state.name,
-                current_step=current_step,
-                result=result,
-                error=error,
+                status="NOT_FOUND",
+                current_step="error",
+                result=None,
+                error="Workflow status is unknown",
             )
-        finally:
-            await client.close()
+
+        current_step = state.name.lower()
+
+        logger.info(f"Workflow {workflow_id} status: {state.name}")
+
+        if state.name == "COMPLETED":
+            try:
+                result = await handle.result()
+                current_step = "completed"
+                logger.info(f"Workflow {workflow_id} completed: {result}")
+            except Exception as e:
+                error = f"Failed to retrieve result: {str(e)}"
+                current_step = "completed_with_error"
+                logger.error(f"Failed to retrieve result for {workflow_id}: {error}")
+        elif state.name == "FAILED":
+            try:
+                await handle.result()
+            except Exception as e:
+                error = str(e)
+            if not error:
+                error = "Workflow failed without additional details"
+            current_step = "failed"
+            logger.error(f"Workflow {workflow_id} failed: {error}")
+
+        return StatusResponse(
+            workflow_id=workflow_id,
+            status=state.name,
+            current_step=current_step,
+            result=result,
+            error=error,
+        )
     except Exception as e:
         logger.warning(f"Workflow {workflow_id} not found: {str(e)}")
         return StatusResponse(

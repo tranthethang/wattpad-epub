@@ -31,7 +31,7 @@ services:
 
   worker:
     <<: *common
-    command: python workers/worker.py
+    command: python -m src.workers.worker
     depends_on:
       - app
 

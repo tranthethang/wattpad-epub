@@ -6,9 +6,6 @@ import os
 
 from temporalio import activity
 
-from ..commands.convert import run_convert
-from ..commands.download import run_download
-from ..commands.get_urls import run_get_urls
 from ..config import (DOWNLOAD_MAX_RETRIES, DOWNLOAD_RETRY_BACKOFF,
                       MAX_BACKOFF_WAIT_TIME)
 from ..validation import (validate_concurrency, validate_page_range,
@@ -36,6 +33,8 @@ async def extract_urls_activity(
     Raises:
         ValidationError: If input parameters are invalid
     """
+    from ..commands.get_urls import run_get_urls
+
     validate_string(api_url, "api_url")
     validate_page_range(page_from, page_to)
 
@@ -82,6 +81,8 @@ async def download_with_validation_activity(
         ValidationError: If input parameters are invalid
         DownloadValidationError: If validation fails after retries
     """
+    from ..commands.download import run_download
+
     if not os.path.exists(urls_file):
         raise ValidationError(f"URLs file not found: {urls_file}")
 
@@ -137,6 +138,8 @@ async def convert_activity(
     Raises:
         ValidationError: If input parameters are invalid
     """
+    from ..commands.convert import run_convert
+
     validate_string(input_dir, "input_dir")
     validate_string(output_file, "output_file")
     validate_string(title, "title")
