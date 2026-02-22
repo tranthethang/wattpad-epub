@@ -69,11 +69,14 @@ Run the complete EPUB generation pipeline as a **distributed workflow** using Te
 
 ### Prerequisites
 
-1. **Install Temporal Server**:
+1. **Set up Temporal Server and UI**:
+   Clone and start services from the [docker-shared-services](https://github.com/tranthethang/docker-shared-services) repository:
    ```bash
-   temporal server start-dev
+   git clone https://github.com/tranthethang/docker-shared-services.git
+   cd docker-shared-services
+   docker compose up -d --build
    ```
-   This starts a local Temporal development server at `localhost:7233`.
+   This starts Temporal Server and Temporal-UI at `localhost:7233`
 
 2. **Configure Environment** (optional):
    - `TEMPORAL_HOST`: Temporal server hostname (default: `localhost`)
@@ -82,51 +85,24 @@ Run the complete EPUB generation pipeline as a **distributed workflow** using Te
    - `TEMPORAL_TASK_QUEUE`: Task queue name (default: `epub-queue`)
    - `APP_PORT`: API server port (default: `80` for standalone, `3000` for Docker Compose)
 
-### Starting the Worker
+### Starting Services
 
-Start a Temporal worker to process EPUB generation workflows:
+Use Docker Compose to start both the API and Temporal worker:
 
 ```bash
-python -m workers.worker
+docker compose up -d --build
 ```
 
-The worker will:
-- Connect to the Temporal server
-- Register the `EpubGenerationWorkflow` and all activities
-- Listen for new workflow executions on the task queue
-- Automatically retry failed activities with exponential backoff
+This will start:
+- **API Server**: FastAPI application for workflow submission and status checking
+- **Temporal Worker**: Automatically processes EPUB generation workflows
+
+The API will be accessible at `http://localhost:3000` (configured via `APP_PORT=3000` in `.env`).
 
 ### Submitting Workflows via API
 
-Start the FastAPI server:
-
-**Standalone (development)**:
-```bash
-uvicorn src.api:app --reload --host 0.0.0.0 --port 80
-```
-
-**Using Docker Compose**:
-```bash
-docker-compose up
-```
-The API will be accessible at `http://localhost:3000` (configured via `APP_PORT=3000` in `.env`).
-
 #### Endpoint: Submit Workflow
 
-**Standalone** (port 80):
-```bash
-curl -X POST http://localhost/make \
-  -F "api_url=https://wattpad.com.vn/get/listchap/xxxxx?page=1" \
-  -F "page_from=1" \
-  -F "page_to=8" \
-  -F "title=Story Title" \
-  -F "author=Author Name" \
-  -F "concurrency=4" \
-  -F "max_retries=10" \
-  -F "cover_image=@cover.png"
-```
-
-**Docker Compose** (port 3000):
 ```bash
 curl -X POST http://localhost:3000/make \
   -F "api_url=https://wattpad.com.vn/get/listchap/xxxxx?page=1" \
@@ -160,12 +136,6 @@ curl -X POST http://localhost:3000/make \
 
 #### Endpoint: Check Workflow Status
 
-**Standalone** (port 80):
-```bash
-curl http://localhost/status/epub-a1b2c3d4e5f6
-```
-
-**Docker Compose** (port 3000):
 ```bash
 curl http://localhost:3000/status/epub-a1b2c3d4e5f6
 ```
