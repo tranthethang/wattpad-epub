@@ -66,14 +66,18 @@ def process_text_for_line_breaks(text: str) -> str:
     """
     Normalize line breaks and whitespace in text.
     1. Replace multiple spaces with a single space.
-    2. Normalize multiple newlines into a single newline.
-    3. Convert each single newline into double newlines for paragraph separation.
+    2. Replace ellipsis patterns (..., .., . . ., . .) with THREE_DOTS.
+    3. Add line breaks after punctuation and around quotation marks.
+    4. Restore THREE_DOTS back to "...".
+    5. Normalize multiple newlines and convert to paragraph breaks.
     """
-    # Replace 2 or more spaces with 1 space
     text = re.sub(r" {2,}", " ", text)
-    # First, normalize all newline sequences to a single newline
+    text = re.sub(r"(\.{2,}|\.(?:[\s\n]+\.)+)", "THREE_DOTS", text)
+    text = re.sub(r"(\.)[\s]+", r"\1\n", text)
+    text = re.sub(r'\s+"', '\n"', text)
+    text = re.sub(r'"\s+', '"\n', text)
+    text = text.replace("THREE_DOTS", "...")
     text = re.sub(r"\n+", "\n", text)
-    # Then, turn each single newline into two to clearly separate paragraphs
     text = re.sub(r"\n", "\n\n", text)
     return text.strip()
 
@@ -167,7 +171,6 @@ def extract_main_content(html: str) -> str | None:
     processed_text = extract_text_from_div(content_div)
     img_content = extract_images_from_div(content_div)
 
-    # If images exist and text is too short, prioritize images
     if img_content and (not processed_text or len(processed_text) < MIN_TEXT_LENGTH):
         return img_content
 
@@ -182,14 +185,12 @@ def extract_chapter_title(html: str) -> str | None:
     3. Return the cleaned title string or None.
     """
     soup = BeautifulSoup(html, HTML_PARSER)
-    # Check <h1> first (from our template), then <title>
     title_tag = soup.find("h1") or soup.find("title")
     if not title_tag:
         return None
 
     title_text = title_tag.get_text(strip=True)
     if ":" in title_text:
-        # Split by last colon and take the second part (right-hand side)
         title_text = title_text.rsplit(":", 1)[-1].strip()
 
     return title_text

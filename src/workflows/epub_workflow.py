@@ -41,18 +41,21 @@ class EpubGenerationWorkflow:
             extract_urls_activity,
             args=workflow_input.to_extraction_input().as_args(),
             retry_policy=retry_policy,
+            start_to_close_timeout=timedelta(minutes=5),
         )
 
         output_dir: str = await workflow.execute_activity(
             download_with_validation_activity,
             args=workflow_input.to_download_input().as_args(),
             retry_policy=retry_policy,
+            start_to_close_timeout=timedelta(minutes=30),
         )
 
         epub_path: str = await workflow.execute_activity(
             convert_activity,
             args=workflow_input.to_conversion_input().as_args(),
             retry_policy=retry_policy,
+            start_to_close_timeout=timedelta(minutes=10),
         )
 
         return epub_path

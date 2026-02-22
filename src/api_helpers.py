@@ -99,6 +99,7 @@ def build_workflow_input(
     author: str,
     concurrency: int,
     max_retries: int,
+    output_dir: str,
     cover_path: str | None,
 ) -> WorkflowInput:
     """Build workflow input data instance.
@@ -111,6 +112,7 @@ def build_workflow_input(
         author: Story author
         concurrency: Download concurrency
         max_retries: Max retry attempts
+        output_dir: Directory to save downloaded chapters
         cover_path: Cover image path
 
     Returns:
@@ -130,7 +132,7 @@ def build_workflow_input(
         concurrency=concurrency,
         max_retries=max_retries,
         cover_path=cover_path,
-        urls_file=os.path.join(DEFAULT_DOWNLOAD_DIR, "urls.txt"),
-        output_dir=DEFAULT_DOWNLOAD_DIR,
+        urls_file=os.path.join(output_dir, "urls.txt"),
+        output_dir=output_dir,
         output_file=os.path.join(DEFAULT_EPUB_DIR, f"{safe_author}_{safe_title}.epub"),
     )

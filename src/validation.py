@@ -69,7 +69,12 @@ def validate_string(value: str, field_name: str) -> None:
 
 
 def validate_make_request(
-    api_url: str, page_from: int, page_to: int, concurrency: int, max_retries: int
+    api_url: str,
+    page_from: int,
+    page_to: int,
+    concurrency: int,
+    max_retries: int,
+    output_dir: str,
 ) -> None:
     """Validate all parameters for the /make endpoint.
 
@@ -79,6 +84,7 @@ def validate_make_request(
         page_to: Ending page
         concurrency: Concurrent downloads
         max_retries: Max retry attempts
+        output_dir: Directory to save downloaded chapters
 
     Raises:
         ValueError: If any parameter is invalid
@@ -87,3 +93,4 @@ def validate_make_request(
     validate_page_range(page_from, page_to)
     validate_concurrency(concurrency)
     validate_retries(max_retries)
+    validate_string(output_dir, "output_dir")

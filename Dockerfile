@@ -1,15 +1,5 @@
-# Stage 1: Build dependencies
-FROM python:3.10-slim as builder
-
-WORKDIR /app
-COPY requirements.txt .
-
-# Install dependencies to a temporary path
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir --prefix=/install -r requirements.txt
-
-# Stage 2: Final Runtime
-FROM python:3.10-slim
+# Use official Playwright Python image with all dependencies pre-installed
+FROM mcr.microsoft.com/playwright/python:v1.58.0-jammy
 
 ARG WWWUSER
 ARG WWWGROUP
@@ -24,27 +14,16 @@ RUN if ! grep -q ":${WWWGROUP}:" /etc/group; then \
         useradd -m -u ${WWWUSER} -g ${WWWGROUP} agent; \
     fi
 
-# Install Playwright system dependencies for chromium
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libstdc++6 \
-    libx11-6 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxrender1 \
-    libxrandr2 \
-    libgbm1 \
-    libdrm2 \
-    libxkbcommon0 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy installed libraries from builder stage
-COPY --from=builder /install /usr/local
+# Use default Playwright browsers location from base image
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-# Install Playwright chromium
-RUN python -m playwright install chromium
+# Ensure all app files are owned by agent user
+RUN chown -R ${WWWUSER}:${WWWGROUP} /app
 
 # Switch to non-root user
 USER agent

@@ -29,6 +29,7 @@ async def make(
     author: str = Form(...),
     concurrency: int = Form(DEFAULT_CONCURRENCY),
     max_retries: int = Form(DOWNLOAD_MAX_RETRIES),
+    output_dir: str = Form(DEFAULT_DOWNLOAD_DIR),
     cover_image: UploadFile | None = File(None),
 ) -> WorkflowResponse:
     """Submit a new EPUB generation workflow.
@@ -41,6 +42,7 @@ async def make(
         author: Story author
         concurrency: Number of concurrent downloads (default: 4)
         max_retries: Maximum download retry attempts (default: 10)
+        output_dir: Directory to save downloaded chapters (default: downloads)
         cover_image: Optional cover image file
 
     Returns:
@@ -54,14 +56,16 @@ async def make(
     )
 
     try:
-        validate_make_request(api_url, page_from, page_to, concurrency, max_retries)
+        validate_make_request(
+            api_url, page_from, page_to, concurrency, max_retries, output_dir
+        )
     except ValueError as e:
         logger.error(f"Invalid request parameters: {str(e)}")
         raise
 
     try:
         ensure_directory_exists(COVER_UPLOAD_DIR)
-        ensure_directory_exists(DEFAULT_DOWNLOAD_DIR)
+        ensure_directory_exists(output_dir)
         ensure_directory_exists(DEFAULT_EPUB_DIR)
     except OSError as e:
         logger.error(f"Failed to create required directories: {str(e)}")
@@ -76,6 +80,7 @@ async def make(
         author,
         concurrency,
         max_retries,
+        output_dir,
         cover_path,
     )
 
