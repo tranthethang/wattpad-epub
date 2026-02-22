@@ -4,37 +4,53 @@ Uses Playwright with a Semaphore to control the number of concurrent downloads.
 """
 
 import asyncio
+import logging
 import os
 
 from playwright.async_api import async_playwright
-from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from slugify import slugify
 
-from ..config import (DEFAULT_DOWNLOAD_DIR, DEFAULT_LOG_DIR, DOWNLOAD_DELAY,
-                      ERROR_LOG_FILE)
+from ..config import (BROWSER_HEADLESS, DEFAULT_DOWNLOAD_DIR, DEFAULT_LOG_DIR,
+                      DOWNLOAD_DELAY, ERROR_LOG_FILE, FILE_INDEX_PREFIX_LENGTH)
 from ..core.scraper_service import get_page_html, save_chapter
+from ..utils import ensure_directory_exists, slugify
 
-console = Console()
+logger = logging.getLogger(__name__)
 
 
 def log_error(url: str):
     """Log failed URLs to a file for later retry."""
-    if not os.path.exists(DEFAULT_LOG_DIR):
-        os.makedirs(DEFAULT_LOG_DIR)
-    with open(ERROR_LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{url}\n")
+    try:
+        ensure_directory_exists(DEFAULT_LOG_DIR)
+    except OSError as e:
+        logger.error(f"Failed to create log directory: {str(e)}")
+        return
+    try:
+        with open(ERROR_LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(f"{url}\n")
+    except OSError as e:
+        logger.error(f"Failed to write error log: {str(e)}")
 
 
-def get_existing_indices(output: str) -> set:
-    """Identify indices of already downloaded HTML files."""
+def get_existing_indices(output: str) -> set[int]:
+    """Identify indices of already downloaded HTML files.
+
+    Extracts file index from the first FILE_INDEX_PREFIX_LENGTH characters.
+
+    Args:
+        output: Directory containing HTML files
+
+    Returns:
+        Set of integer indices found in filenames
+    """
     if not os.path.exists(output):
         return set()
     files = os.listdir(output)
     return {
-        int(f[:4])
+        int(f[:FILE_INDEX_PREFIX_LENGTH])
         for f in files
-        if f.endswith(".html") and len(f) > 4 and f[:4].isdigit()
+        if f.endswith(".html")
+        and len(f) > FILE_INDEX_PREFIX_LENGTH
+        and f[:FILE_INDEX_PREFIX_LENGTH].isdigit()
     }
 
 
@@ -64,23 +80,24 @@ def load_urls(file_path: str) -> list[str]:
 
 
 async def handle_download_result(
-    index: int, url: str, data: dict | None, output: str, progress, task
+    index: int, url: str, data: dict | None, output: str
 ) -> bool:
     """Process the fetched data, save it, and report status."""
     if not data or not data.get("html"):
         log_error(url)
-        console.print(f"[red]Failed (Page Error):[/red] {url[:30]}...")
+        logger.error(f"Failed (Page Error): {url}")
         return False
 
-    file_name = generate_filename(index, url, data.get("title", ""))
-    res = await save_chapter(output, data.get("title", ""), data["html"], file_name)
+    title = data.get("title") or f"Chapter {index}"
+    file_name = generate_filename(index, url, title)
+    res = await save_chapter(output, title, data["html"], file_name)
 
     if not res:
         log_error(url)
-        console.print(f"[red]Failed (No Content):[/red] {url[:30]}...")
+        logger.error(f"Failed (No Content): {url}")
         return False
 
-    console.print(f"[green]Success:[/green] {file_name}")
+    logger.info(f"Success: {file_name}")
     return True
 
 
@@ -91,14 +108,12 @@ async def download_url(
     semaphore,
     output: str,
     existing_indices: set,
-    progress,
-    task,
 ):
     """
     Process a single URL: fetch HTML and save it to disk.
 
-    This function manages the concurrent request limit using a semaphore,
-    skips already downloaded chapters, and updates the shared progress bar.
+    This function manages the concurrent request limit using a semaphore
+    and skips already downloaded chapters.
 
     Args:
         index: The sequence number of the chapter.
@@ -107,64 +122,56 @@ async def download_url(
         semaphore: Asyncio semaphore for concurrency control.
         output: Directory where files will be saved.
         existing_indices: A set of already downloaded chapter numbers.
-        progress: Rich progress instance.
-        task: Rich progress task ID.
     """
     async with semaphore:
         try:
             if index in existing_indices:
-                console.print(f"[yellow]Skipping:[/yellow] Index {index:04d}")
+                logger.info(f"Skipping index {index:04d}")
                 return
 
-            progress.update(task, description=f"Downloading [{index:04d}]...")
             data = await get_page_html(browser, url)
-
-            await handle_download_result(index, url, data, output, progress, task)
+            await handle_download_result(index, url, data, output)
             await asyncio.sleep(DOWNLOAD_DELAY)
         except Exception as e:
-            console.print(f"[red]System Error:[/red] {url} - {e}")
+            logger.error(f"System Error: {url} - {e}")
             log_error(url)
-        finally:
-            progress.advance(task)
 
 
 async def execute_download_tasks(urls, browser, semaphore, output, existing_indices):
-    """Run all download tasks concurrently with progress tracking."""
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task(description="Preparing...", total=len(urls))
-        await asyncio.gather(
-            *[
-                download_url(
-                    i + 1,
-                    url,
-                    browser,
-                    semaphore,
-                    output,
-                    existing_indices,
-                    progress,
-                    task,
-                )
-                for i, url in enumerate(urls)
-            ]
-        )
+    """Run all download tasks concurrently."""
+    logger.info(f"Starting download of {len(urls)} URLs")
+    await asyncio.gather(
+        *[
+            download_url(
+                i + 1,
+                url,
+                browser,
+                semaphore,
+                output,
+                existing_indices,
+            )
+            for i, url in enumerate(urls)
+        ]
+    )
 
 
 async def run_download(file_list: str, output: str, concurrency: int):
     """Coordinate the concurrent download of story chapters."""
     urls = load_urls(file_list)
     if not urls:
-        console.print(f"[yellow]Warning:[/yellow] No valid URLs found in {file_list}")
+        logger.warning(f"No valid URLs found in {file_list}")
         return
 
-    os.makedirs(output, exist_ok=True)
+    try:
+        ensure_directory_exists(output)
+    except OSError as e:
+        logger.error(f"Failed to create output directory: {str(e)}")
+        return
+
     existing_indices = get_existing_indices(output)
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=BROWSER_HEADLESS)
         semaphore = asyncio.Semaphore(concurrency)
         await execute_download_tasks(urls, browser, semaphore, output, existing_indices)
         await browser.close()

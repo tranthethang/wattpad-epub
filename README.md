@@ -8,6 +8,7 @@ A CLI tool to download stories from Wattpad-like websites and convert them into 
 - **Stealth Scraping**: Download chapter content using Playwright with bot detection evasion. Automatically skips already downloaded chapters.
 - **EPUB Conversion**: Automatically bundle downloaded HTML chapters into a clean EPUB file with metadata and cover art. Auto-generates filenames based on title and author.
 - **Progress Tracking**: Visual progress bars and status updates using Rich.
+- **Temporal Workflow Orchestration**: Run the complete EPUB generation pipeline (URL extraction → download → conversion) as a distributed workflow with automatic retry logic and validation.
 
 ## Installation
 
@@ -34,7 +35,7 @@ python -m src.main get-urls "API_URL" PAGE_FROM PAGE_TO --output urls.txt
 
 Example:
 ```bash
-python -m src.main get-urls "https://wattpad.com.vn/get/listchap/83146?page=1" 1 8 --output urls.txt
+python -m src.main get-urls "https://wattpad.com.vn/get/listchap/xxxxx?page=1" 1 8 --output urls.txt
 ```
 
 - **Shortcut**: `-o` for `--output`.
@@ -62,16 +63,160 @@ python -m src.main convert --title "Story Title" --author "Author Name" --cover 
   - `-a`, `--author`: Author name (default: `Unknown`).
   - `-c`, `--cover`: Path or URL to cover image (default: `cover.png`).
 
+## Temporal Workflow Mode
+
+Run the complete EPUB generation pipeline as a **distributed workflow** using Temporal. This enables automatic retry logic, validation, and monitoring of the entire process.
+
+### Prerequisites
+
+1. **Install Temporal Server**:
+   ```bash
+   temporal server start-dev
+   ```
+   This starts a local Temporal development server at `localhost:7233`.
+
+2. **Configure Environment** (optional):
+   - `TEMPORAL_HOST`: Temporal server hostname (default: `localhost`)
+   - `TEMPORAL_PORT`: Temporal server port (default: `7233`)
+   - `TEMPORAL_NAMESPACE`: Temporal namespace (default: `default`)
+   - `TEMPORAL_TASK_QUEUE`: Task queue name (default: `epub-queue`)
+   - `APP_PORT`: API server port (default: `80` for standalone, `3000` for Docker Compose)
+
+### Starting the Worker
+
+Start a Temporal worker to process EPUB generation workflows:
+
+```bash
+python -m workers.worker
+```
+
+The worker will:
+- Connect to the Temporal server
+- Register the `EpubGenerationWorkflow` and all activities
+- Listen for new workflow executions on the task queue
+- Automatically retry failed activities with exponential backoff
+
+### Submitting Workflows via API
+
+Start the FastAPI server:
+
+**Standalone (development)**:
+```bash
+uvicorn src.api:app --reload --host 0.0.0.0 --port 80
+```
+
+**Using Docker Compose**:
+```bash
+docker-compose up
+```
+The API will be accessible at `http://localhost:3000` (configured via `APP_PORT=3000` in `.env`).
+
+#### Endpoint: Submit Workflow
+
+**Standalone** (port 80):
+```bash
+curl -X POST http://localhost/make \
+  -F "api_url=https://wattpad.com.vn/get/listchap/xxxxx?page=1" \
+  -F "page_from=1" \
+  -F "page_to=8" \
+  -F "title=Story Title" \
+  -F "author=Author Name" \
+  -F "concurrency=4" \
+  -F "max_retries=10" \
+  -F "cover_image=@cover.png"
+```
+
+**Docker Compose** (port 3000):
+```bash
+curl -X POST http://localhost:3000/make \
+  -F "api_url=https://wattpad.com.vn/get/listchap/xxxxx?page=1" \
+  -F "page_from=1" \
+  -F "page_to=8" \
+  -F "title=Story Title" \
+  -F "author=Author Name" \
+  -F "concurrency=4" \
+  -F "max_retries=10" \
+  -F "cover_image=@cover.png"
+```
+
+**Parameters**:
+- `api_url` (required): API endpoint to extract chapter URLs
+- `page_from` (required): Starting page number
+- `page_to` (required): Ending page number
+- `title` (required): Story title
+- `author` (required): Author name
+- `concurrency` (optional): Number of concurrent downloads (default: `4`)
+- `max_retries` (optional): Maximum download retry attempts (default: `10`)
+- `cover_image` (optional): Cover image file upload
+
+**Response**:
+```json
+{
+  "workflow_id": "epub-a1b2c3d4e5f6",
+  "status": "submitted",
+  "message": "Workflow epub-a1b2c3d4e5f6 submitted successfully"
+}
+```
+
+#### Endpoint: Check Workflow Status
+
+**Standalone** (port 80):
+```bash
+curl http://localhost/status/epub-a1b2c3d4e5f6
+```
+
+**Docker Compose** (port 3000):
+```bash
+curl http://localhost:3000/status/epub-a1b2c3d4e5f6
+```
+
+**Response**:
+```json
+{
+  "workflow_id": "epub-a1b2c3d4e5f6",
+  "status": "COMPLETED",
+  "current_step": "completed",
+  "result": "/path/to/generated/story.epub",
+  "error": null
+}
+```
+
+**Status Values**:
+- `RUNNING`: Workflow is in progress
+- `COMPLETED`: Workflow completed successfully
+- `FAILED`: Workflow failed
+- `NOT_FOUND`: Workflow ID not found
+
+### Workflow Steps
+
+The `EpubGenerationWorkflow` executes three activities in sequence with automatic retry:
+
+1. **Extract URLs Activity**: Fetches chapter URLs from the API and saves them to a file.
+2. **Download with Validation Activity**: Downloads chapters with validation and retry logic. If the number of downloaded files doesn't match expected URLs, it retries with exponential backoff.
+3. **Convert Activity**: Converts downloaded HTML files to EPUB format with metadata and cover art.
+
+All activities have automatic **exponential backoff retry policy**:
+- Initial interval: 2 seconds
+- Backoff coefficient: 2.0
+- Maximum interval: 60 seconds
+- Maximum attempts: 3
+
 ## Project Structure
 
 - **src/**: Main source code.
   - `main.py`: CLI entry point with commands.
+  - `api.py`: FastAPI REST endpoints for workflow submission and status checking.
   - **core/**: Core business logic.
     - `scraper_service.py`: Playwright scraping logic using stealth mode.
     - `epub_factory.py`: EPUB generation logic.
     - `url_extractor.py`: API URL extraction logic.
   - **commands/**: CLI command implementations.
+  - **workflows/**: Temporal workflow definitions.
+    - `epub_workflow.py`: Main EPUB generation workflow orchestration.
+    - `activities.py`: Workflow activities (URL extraction, download, conversion).
   - `utils.py`: Text cleaning and paragraph conversion utilities.
+- **workers/**: Temporal worker implementation.
+  - `worker.py`: Starts a Temporal worker to process workflows.
 - **downloads/**: Default directory for HTML chapter files.
 - **epub/**: Default directory for generated EPUB files.
 - **logs/**: Contains `error.log` for failed downloads.
@@ -86,3 +231,5 @@ python -m src.main convert --title "Story Title" --author "Author Name" --cover 
 - **BeautifulSoup4 & LXML**: HTML parsing and cleaning.
 - **HTTPX**: Asynchronous HTTP client for API requests.
 - **Python-Slugify**: Filename normalization.
+- **Temporal Python SDK**: Distributed workflow orchestration.
+- **FastAPI & Uvicorn**: REST API framework and server for workflow management.

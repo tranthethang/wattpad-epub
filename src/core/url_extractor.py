@@ -9,6 +9,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from ..config import HTML_PARSER, HTTP_TIMEOUT
+from ..utils import is_http_url
 
 
 def build_api_url(base_api_url: str, page: int) -> str:
@@ -19,7 +20,16 @@ def build_api_url(base_api_url: str, page: int) -> str:
     query = parse_qs(parsed_url.query)
     query["page"] = [str(page)]
     new_query = urlencode(query, doseq=True)
-    return urlunparse(parsed_url._replace(query=new_query))
+    return urlunparse(
+        (
+            parsed_url.scheme,
+            parsed_url.netloc,
+            parsed_url.path,
+            parsed_url.params,
+            new_query,
+            parsed_url.fragment,
+        )
+    )
 
 
 def extract_urls_from_html(html_content: str, base_domain: str) -> list:
@@ -44,7 +54,7 @@ def extract_urls_from_html(html_content: str, base_domain: str) -> list:
             href = "".join(href)
         if href.startswith("/"):
             href = f"{base_domain}{href}"
-        if href.startswith(("http://", "https://")):
+        if is_http_url(href):
             urls.append(href)
     return urls
 
